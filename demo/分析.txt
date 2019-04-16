@@ -1,0 +1,32 @@
+
+
+一、数据流向：
+
+————————————————————————————————————————————————————————————————————————————————————————————
+ |  服务端视频源   -->  IO  -->  DEMUXER  -->  REMUXER  -->  MEDIASOURCE  -->  VIDEOTAG     |
+————————————————————————————————————————————————————————————————————————————————————————————
+
+1、视频源支持2中协议： http(s) 和 ws(s)
+
+http://~/*.flv
+ws://~/*  (arraybuffer/blob)
+
+2、IO针对视频源协议提供：
+
+http协议：
+    FetchStreamLoader // fetch + stream IO loader. Currently working on chrome 43+.
+    MozChunkedLoader  // For FireFox browser which supports `xhr.responseType = 'moz-chunked-arraybuffer'`
+    MSStreamLoader    // For IE11/Edge browser by microsoft which supports `xhr.responseType = 'ms-stream'`
+    RangeLoader       // Universal IO Loader, implemented by adding Range header in xhr's request header
+
+websocket协议：
+    WebSocketLoader   // For FLV over WebSocket live stream
+
+所有协议最终由：io-controller 统一选择和控制。
+
+二、增加扩展协议支持实时音视频流方案：
+
+1、参考 FLVDemuxer 类
+2、编写 新的解析类----RTSPDemuxer、RAWH264Demuxer、RAWAACDemuxer。
+
+TODO:  2、编写 新的解析类----RTSPDemuxer、RAWH264Demuxer、RAWAACDemuxer。

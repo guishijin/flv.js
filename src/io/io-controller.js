@@ -237,6 +237,8 @@ class IOController {
     }
 
     _selectLoader() {
+        // io方式选择结果：
+        Log.v(this.TAG, 'io-controller._selectLoader(), 开始选择io-loader ......');
         if (this._config.customLoader != null) {
             this._loaderClass = this._config.customLoader;
         } else if (this._isWebSocketURL) {
@@ -250,6 +252,9 @@ class IOController {
         } else {
             throw new RuntimeException('Your browser doesn\'t support xhr with arraybuffer responseType!');
         }
+
+        // io方式选择结果：
+        Log.v(this.TAG, 'io-controller._selectLoader(): 选择结果：' + this._loaderClass.name);
     }
 
     _createLoader() {

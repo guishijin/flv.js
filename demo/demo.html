@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
+    <title>flv.js demo</title>
+    <script src="../dist/flv.js"></script>
+</head>
+
+<body onload="loaded()">
+
+    <video id="videoElement" controls autoplay></video>
+    <script>
+        function loaded() {
+            if (flvjs.isSupported()) {
+                var videoElement = document.getElementById('videoElement');
+                var flvPlayer = flvjs.createPlayer({
+                    type: 'flv',
+                    url: './test.flv'
+                });
+                flvPlayer.attachMediaElement(videoElement);
+                flvPlayer.load();
+                try {
+                    //flvPlayer.play();
+                } catch (e)
+                {
+                    console.log(e);
+                }
+                
+            }
+        }
+    </script>
+
+</body>
+
+</html>

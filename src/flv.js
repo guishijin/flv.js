@@ -45,8 +45,10 @@ function createPlayer(mediaDataSource, optionalConfig) {
 
     switch (mds.type) {
         case 'flv':
+            console.log('flv.js -> use FlvPlayer !');
             return new FlvPlayer(mds, optionalConfig);
         default:
+            console.log('flv.js -> use NativePlayer !');
             return new NativePlayer(mds, optionalConfig);
     }
 }
@@ -88,5 +90,8 @@ Object.defineProperty(flvjs, 'version', {
         return '__VERSION__';
     }
 });
+
+// 输出 flvjs的特性列表
+console.log('flvjs特性信息：' + flvjs.getFeatureList());
 
 export default flvjs;
