@@ -17,6 +17,9 @@
  * limitations under the License.
  */
 
+ /**
+  * 内部函数
+  */
 function checkContinuation(uint8array, start, checkLength) {
     let array = uint8array;
     if (start + checkLength < array.length) {
@@ -30,6 +33,10 @@ function checkContinuation(uint8array, start, checkLength) {
     }
 }
 
+/**
+ * 解码UTF8
+ * @param {字节数组} uint8array 
+ */
 function decodeUTF8(uint8array) {
     let out = [];
     let input = uint8array;
@@ -81,4 +88,7 @@ function decodeUTF8(uint8array) {
     return out.join('');
 }
 
+/**
+ * 导出decodeUTF8函数
+ */
 export default decodeUTF8;

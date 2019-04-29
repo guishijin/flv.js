@@ -16,15 +16,24 @@
  * limitations under the License.
  */
 
+ /**
+  * 垫片类
+  */
 class Polyfill {
 
+    /**
+     * 静态方法，安装垫片
+     */
     static install() {
+
+        // 支持ES6的 Object.setPrototypeOf
         // ES6 Object.setPrototypeOf
         Object.setPrototypeOf = Object.setPrototypeOf || function (obj, proto) {
             obj.__proto__ = proto;
             return obj;
         };
 
+        // 支持ES6的Object.assign
         // ES6 Object.assign
         Object.assign = Object.assign || function (target) {
             if (target === undefined || target === null) {
@@ -45,6 +54,7 @@ class Polyfill {
             return output;
         };
 
+        // 支持ES6的Promise (missing support in IE11)
         // ES6 Promise (missing support in IE11)
         if (typeof self.Promise !== 'function') {
             require('es6-promise').polyfill();
@@ -53,6 +63,10 @@ class Polyfill {
 
 }
 
+// 安装垫片
 Polyfill.install();
 
+/**
+ * 导出Polyfill类
+ */
 export default Polyfill;

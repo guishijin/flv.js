@@ -18,8 +18,16 @@
 
 import EventEmitter from 'events';
 
+/**
+ * 日志类
+ */
 class Log {
 
+    /**
+     * 静态的错误信息输出函数
+     * @param {日志标志} tag 
+     * @param {日志信息} msg 
+     */
     static e(tag, msg) {
         if (!tag || Log.FORCE_GLOBAL_TAG)
             tag = Log.GLOBAL_TAG;
@@ -43,6 +51,12 @@ class Log {
         }
     }
 
+
+    /**
+     * 静态的运行信息输出函数
+     * @param {日志标志} tag 
+     * @param {日志信息} msg 
+     */    
     static i(tag, msg) {
         if (!tag || Log.FORCE_GLOBAL_TAG)
             tag = Log.GLOBAL_TAG;
@@ -64,6 +78,11 @@ class Log {
         }
     }
 
+    /**
+     * 静态的警告信息输出函数
+     * @param {日志标志} tag 
+     * @param {日志信息} msg 
+     */
     static w(tag, msg) {
         if (!tag || Log.FORCE_GLOBAL_TAG)
             tag = Log.GLOBAL_TAG;
@@ -85,6 +104,12 @@ class Log {
         }
     }
 
+    
+    /**
+     * 静态的调试信息输出函数
+     * @param {日志标志} tag 
+     * @param {日志信息} msg 
+     */
     static d(tag, msg) {
         if (!tag || Log.FORCE_GLOBAL_TAG)
             tag = Log.GLOBAL_TAG;
@@ -106,6 +131,12 @@ class Log {
         }
     }
 
+    
+    /**
+     * 静态的详细信息输出函数
+     * @param {日志标志} tag 
+     * @param {日志信息} msg 
+     */
     static v(tag, msg) {
         if (!tag || Log.FORCE_GLOBAL_TAG)
             tag = Log.GLOBAL_TAG;
@@ -137,4 +168,7 @@ Log.ENABLE_CALLBACK = false;
 
 Log.emitter = new EventEmitter();
 
+/**
+ * 导出日志类
+ */
 export default Log;

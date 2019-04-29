@@ -25,8 +25,15 @@ import {IllegalStateException} from '../utils/exception.js';
 
 
 // Fragmented mp4 remuxer
+/**
+ * 分段的MP4封装器类 fMP4
+ */
 class MP4Remuxer {
 
+    /**
+     * 构造函数
+     * @param {配置} config 
+     */
     constructor(config) {
         this.TAG = 'MP4Remuxer';
 
@@ -67,6 +74,9 @@ class MP4Remuxer {
         this._fillAudioTimestampGap = this._config.fixAudioTimestampGap;
     }
 
+    /**
+     * 析构函数
+     */
     destroy() {
         this._dtsBase = -1;
         this._dtsBaseInited = false;
@@ -80,9 +90,17 @@ class MP4Remuxer {
         this._onMediaSegment = null;
     }
 
+    /**
+     * 绑定数据源 一般为demuxer
+     * @param {数据源生产者} producer 
+     */
     bindDataSource(producer) {
+        // 设定源的数据到达事件onDataAvailable绑定到 remux方法上
         producer.onDataAvailable = this.remux.bind(this);
+        // 设定源的轨道元数据事件onTrackMetadata绑定到 _onTrackMetadataReceived方法上
         producer.onTrackMetadata = this._onTrackMetadataReceived.bind(this);
+
+        // 返回对象自身，方便链式调用
         return this;
     }
 
@@ -129,6 +147,12 @@ class MP4Remuxer {
         this._audioSegmentInfoList.clear();
     }
 
+    /**
+     * 接收源的数据，进行数据的重新封装
+     * 
+     * @param {音频轨道} audioTrack 
+     * @param {视频轨道} videoTrack 
+     */
     remux(audioTrack, videoTrack) {
         if (!this._onMediaSegment) {
             throw new IllegalStateException('MP4Remuxer: onMediaSegment callback must be specificed!');
@@ -136,10 +160,18 @@ class MP4Remuxer {
         if (!this._dtsBaseInited) {
             this._calculateDtsBase(audioTrack, videoTrack);
         }
+
+        // 封装视频
         this._remuxVideo(videoTrack);
+        // 封装音频
         this._remuxAudio(audioTrack);
     }
 
+    /**
+     * 轨道元数据信息到达事件处理
+     * @param {类型} type 
+     * @param {元数据} metadata 
+     */
     _onTrackMetadataReceived(type, metadata) {
         let metabox = null;
 
@@ -740,4 +772,7 @@ class MP4Remuxer {
 
 }
 
+/**
+ * 导出MP4Remuxer封装器类
+ */
 export default MP4Remuxer;

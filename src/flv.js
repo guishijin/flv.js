@@ -33,6 +33,11 @@ Polyfill.install();
 
 
 // factory method
+/**
+ * 创建播放器
+ * @param {MediaDataSource对象} mediaDataSource 
+ * @param {可选的配置对象} optionalConfig 
+ */
 function createPlayer(mediaDataSource, optionalConfig) {
     let mds = mediaDataSource;
     if (mds == null || typeof mds !== 'object') {
@@ -43,6 +48,7 @@ function createPlayer(mediaDataSource, optionalConfig) {
         throw new InvalidArgumentException('MediaDataSource must has type field to indicate video file type!');
     }
 
+    // 根据mds的type字段： flv->创建FlvPlayer；其他->NaivePlayer
     switch (mds.type) {
         case 'flv':
             console.log('flv.js -> use FlvPlayer !');
@@ -94,4 +100,7 @@ Object.defineProperty(flvjs, 'version', {
 // 输出 flvjs的特性列表
 console.log('flvjs特性信息：' + flvjs.getFeatureList());
 
+/**
+ * 导出flvjs对象
+ */
 export default flvjs;

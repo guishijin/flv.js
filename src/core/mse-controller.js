@@ -24,8 +24,15 @@ import {SampleInfo, IDRSampleList} from './media-segment-info.js';
 import {IllegalStateException} from '../utils/exception.js';
 
 // Media Source Extensions controller
+/**
+ * MSE控制器类
+ */
 class MSEController {
 
+    /**
+     * 构造函数
+     * @param {配置} config
+     */
     constructor(config) {
         this.TAG = 'MSEController';
 
@@ -79,6 +86,9 @@ class MSEController {
         this._idrList = new IDRSampleList();
     }
 
+    /**
+     * 析构函数
+     */
     destroy() {
         if (this._mediaElement || this._mediaSource) {
             this.detachMediaElement();
@@ -88,28 +98,49 @@ class MSEController {
         this._emitter = null;
     }
 
+    /**
+     * 添加事件监听器
+     * @param {事件} event 
+     * @param {事件监听器} listener 
+     */
     on(event, listener) {
         this._emitter.addListener(event, listener);
     }
 
+    /**
+     * 移除事件监听器
+     * @param {事件} event 
+     * @param {事件监听器} listener 
+     */
     off(event, listener) {
         this._emitter.removeListener(event, listener);
     }
 
+    /**
+     * 附加HtmlMediaElement标签 - video标签
+     * @param {HtmlMediaElement - video标签} mediaElement 
+     */
     attachMediaElement(mediaElement) {
         if (this._mediaSource) {
             throw new IllegalStateException('MediaSource has been attached to an HTMLMediaElement!');
         }
+        // 创建MediaSource对象，并绑定sourceopen、sourceended、sourceclose事件
         let ms = this._mediaSource = new window.MediaSource();
         ms.addEventListener('sourceopen', this.e.onSourceOpen);
         ms.addEventListener('sourceended', this.e.onSourceEnded);
         ms.addEventListener('sourceclose', this.e.onSourceClose);
 
+        // 保存mediaElement标签
         this._mediaElement = mediaElement;
+        // 使用mediaSource对象创建ObjectURL对象
         this._mediaSourceObjectURL = window.URL.createObjectURL(this._mediaSource);
+        // 将HtmlMediaElement标签-video标签的src属性和ObjectURL对象绑定。
         mediaElement.src = this._mediaSourceObjectURL;
     }
 
+    /**
+     * 分离媒体元素 - video标签
+     */
     detachMediaElement() {
         if (this._mediaSource) {
             let ms = this._mediaSource;
@@ -165,6 +196,11 @@ class MSEController {
         }
     }
 
+    /**
+     * 添加初始的分片
+     * @param {初始的分片} initSegment 
+     * @param {??} deferred 
+     */
     appendInitSegment(initSegment, deferred) {
         if (!this._mediaSource || this._mediaSource.readyState !== 'open') {
             // sourcebuffer creation requires mediaSource.readyState === 'open'
@@ -190,6 +226,8 @@ class MSEController {
             if (!this._mimeTypes[is.type]) {  // empty, first chance create sourcebuffer
                 firstInitSegment = true;
                 try {
+                    // 获取sourceBuffer对象
+                    // 向_mediaSource添加音频/视频的sourceBuffer，并将对应的sourceBuffer记录到_sourceBuffer[is.Type]中。
                     let sb = this._sourceBuffers[is.type] = this._mediaSource.addSourceBuffer(mimeType);
                     sb.addEventListener('error', this.e.onSourceBufferError);
                     sb.addEventListener('updateend', this.e.onSourceBufferUpdateEnd);
@@ -222,20 +260,32 @@ class MSEController {
         }
     }
 
+    /**
+     * 添加媒体分片
+     * @param {媒体分片} mediaSegment 
+     */
     appendMediaSegment(mediaSegment) {
         let ms = mediaSegment;
+        // 将媒体片段根据类型（音频/视频/脚本）添加到对应的挂起的队列中
         this._pendingSegments[ms.type].push(ms);
 
+        // 清理SourceBuffer
         if (this._config.autoCleanupSourceBuffer && this._needCleanupSourceBuffer()) {
             this._doCleanupSourceBuffer();
         }
 
+        // 获取sourceBuffer
         let sb = this._sourceBuffers[ms.type];
         if (sb && !sb.updating && !this._hasPendingRemoveRanges()) {
+            // 追加媒体片段
             this._doAppendSegments();
         }
     }
 
+    /**
+     * 定位
+     * @param {秒} seconds 
+     */
     seek(seconds) {
         // remove all appended buffers
         for (let type in this._sourceBuffers) {
@@ -294,6 +344,9 @@ class MSEController {
         }
     }
 
+    /**
+     * 结束流
+     */
     endOfStream() {
         let ms = this._mediaSource;
         let sb = this._sourceBuffers;
@@ -318,10 +371,17 @@ class MSEController {
         }
     }
 
+    /**
+     * 获取最近的关键帧I帧
+     * @param {dts} dts 
+     */
     getNearestKeyframe(dts) {
         return this._idrList.getLastSyncPointBeforeDts(dts);
     }
 
+    /**
+     * 判断是否需要清理sourceBuffer
+     */
     _needCleanupSourceBuffer() {
         if (!this._config.autoCleanupSourceBuffer) {
             return false;
@@ -344,6 +404,9 @@ class MSEController {
         return false;
     }
 
+    /**
+     * 清理SourceBuffer
+     */
     _doCleanupSourceBuffer() {
         let currentTime = this._mediaElement.currentTime;
 
@@ -376,6 +439,9 @@ class MSEController {
         }
     }
 
+    /**
+     * 更新媒体源的持续时间
+     */
     _updateMediaSourceDuration() {
         let sb = this._sourceBuffers;
         if (this._mediaElement.readyState === 0 || this._mediaSource.readyState !== 'open') {
@@ -397,6 +463,9 @@ class MSEController {
         this._pendingMediaDuration = 0;
     }
 
+    /**
+     * 移除指定范围的sourceBuffer数据
+     */
     _doRemoveRanges() {
         for (let type in this._pendingRemoveRanges) {
             if (!this._sourceBuffers[type] || this._sourceBuffers[type].updating) {
@@ -411,15 +480,22 @@ class MSEController {
         }
     }
 
+    /**
+     * 追加媒体片段 -- 音频/视频
+     */
     _doAppendSegments() {
+        // 获取挂起的媒体片段队列
         let pendingSegments = this._pendingSegments;
 
+        // 遍历 音频/视频
         for (let type in pendingSegments) {
             if (!this._sourceBuffers[type] || this._sourceBuffers[type].updating) {
                 continue;
             }
 
             if (pendingSegments[type].length > 0) {
+
+                // 将媒体片段从挂起队列中移除
                 let segment = pendingSegments[type].shift();
 
                 if (segment.timestampOffset) {
@@ -441,7 +517,9 @@ class MSEController {
                     continue;
                 }
 
+                // 尝试将片段追加到_sourceBuffer中
                 try {
+                    // 追加数据到音频/视频的sourceBuffer中。
                     this._sourceBuffers[type].appendBuffer(segment.data);
                     this._isBufferFull = false;
                     if (type === 'video' && segment.hasOwnProperty('info')) {
@@ -473,6 +551,9 @@ class MSEController {
         }
     }
 
+    /**
+     * Sourceopen事件
+     */
     _onSourceOpen() {
         Log.v(this.TAG, 'MediaSource onSourceOpen');
         this._mediaSource.removeEventListener('sourceopen', this.e.onSourceOpen);
@@ -491,11 +572,17 @@ class MSEController {
         this._emitter.emit(MSEEvents.SOURCE_OPEN);
     }
 
+    /**
+     * sourceended事件
+     */
     _onSourceEnded() {
         // fired on endOfStream
         Log.v(this.TAG, 'MediaSource onSourceEnded');
     }
 
+    /**
+     * sourceclose事件
+     */
     _onSourceClose() {
         // fired on detaching from media element
         Log.v(this.TAG, 'MediaSource onSourceClose');
@@ -506,11 +593,17 @@ class MSEController {
         }
     }
 
+    /**
+     * 存在挂起的片段
+     */
     _hasPendingSegments() {
         let ps = this._pendingSegments;
         return ps.video.length > 0 || ps.audio.length > 0;
     }
 
+    /**
+     * 
+     */
     _hasPendingRemoveRanges() {
         let prr = this._pendingRemoveRanges;
         return prr.video.length > 0 || prr.audio.length > 0;
@@ -536,4 +629,7 @@ class MSEController {
 
 }
 
+/**
+ * 导出MSEController控制器类
+ */
 export default MSEController;

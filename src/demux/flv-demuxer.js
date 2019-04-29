@@ -467,6 +467,13 @@ class FLVDemuxer {
         };
     }
 
+    /**
+     * 解析音频数据
+     * @param {缓冲区数组} arrayBuffer 
+     * @param {偏移} dataOffset 
+     * @param {数据大小} dataSize 
+     * @param {时间戳} tagTimestamp 
+     */
     _parseAudioData(arrayBuffer, dataOffset, dataSize, tagTimestamp) {
         if (dataSize <= 1) {
             Log.w(this.TAG, 'Flv: Invalid audio packet, missing SoundData payload!');
@@ -1098,4 +1105,7 @@ class FLVDemuxer {
 
 }
 
+/**
+ * 导出FLVDemuxer解析类
+ */
 export default FLVDemuxer;

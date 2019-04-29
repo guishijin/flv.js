@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+ /**
+  * 导出flvjs的默认配置常量 defaultConfig
+  */
 export const defaultConfig = {
     enableWorker: false,
     enableStashBuffer: true,
@@ -49,6 +52,9 @@ export const defaultConfig = {
     customLoader: undefined
 };
 
+/**
+ * 导出创建默认配置函数
+ */
 export function createDefaultConfig() {
     return Object.assign({}, defaultConfig);
 }

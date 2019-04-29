@@ -19,12 +19,18 @@
 import {LoaderErrors} from '../io/loader.js';
 import DemuxErrors from '../demux/demux-errors.js';
 
+/**
+ * 导出错误类型定义常量
+ */
 export const ErrorTypes = {
     NETWORK_ERROR: 'NetworkError',
     MEDIA_ERROR: 'MediaError',
     OTHER_ERROR: 'OtherError'
 };
 
+/**
+ * 导出错误详细信息常量
+ */
 export const ErrorDetails = {
     NETWORK_EXCEPTION: LoaderErrors.EXCEPTION,
     NETWORK_STATUS_CODE_INVALID: LoaderErrors.HTTP_STATUS_CODE_INVALID,

@@ -19,26 +19,44 @@
 import EventEmitter from 'events';
 import Log from './logger.js';
 
+/**
+ * 日志控制类
+ */
 class LoggingControl {
 
+    /**
+     * 获取强制全局日志标志
+     */
     static get forceGlobalTag() {
         return Log.FORCE_GLOBAL_TAG;
     }
 
+    /**
+     * 设置强制全局日志标志
+     */
     static set forceGlobalTag(enable) {
         Log.FORCE_GLOBAL_TAG = enable;
         LoggingControl._notifyChange();
     }
 
+    /**
+     * 获取全局日志标志
+     */
     static get globalTag() {
         return Log.GLOBAL_TAG;
     }
 
+    /**
+     * 设置全局日志标志
+     */
     static set globalTag(tag) {
         Log.GLOBAL_TAG = tag;
         LoggingControl._notifyChange();
     }
 
+    /**
+     * 获取日志使能配置
+     */
     static get enableAll() {
         return Log.ENABLE_VERBOSE
             && Log.ENABLE_DEBUG
@@ -47,6 +65,9 @@ class LoggingControl {
             && Log.ENABLE_ERROR;
     }
 
+    /**
+     * 设置日志使能配置
+     */
     static set enableAll(enable) {
         Log.ENABLE_VERBOSE = enable;
         Log.ENABLE_DEBUG = enable;
@@ -56,51 +77,84 @@ class LoggingControl {
         LoggingControl._notifyChange();
     }
 
+    /**
+     * 获取日志DEBUG使能标志
+     */
     static get enableDebug() {
         return Log.ENABLE_DEBUG;
     }
 
+    /**
+     * 设置日志DEBUF使能标志
+     */
     static set enableDebug(enable) {
         Log.ENABLE_DEBUG = enable;
         LoggingControl._notifyChange();
     }
 
+    /**
+     * 获取日志详细信息使能标志
+     */
     static get enableVerbose() {
         return Log.ENABLE_VERBOSE;
     }
 
+    /**
+     * 设置日志详细信息使能标志
+     */
     static set enableVerbose(enable) {
         Log.ENABLE_VERBOSE = enable;
         LoggingControl._notifyChange();
     }
 
+    /**
+     * 获取日志运行信息使能标志
+     */
     static get enableInfo() {
         return Log.ENABLE_INFO;
     }
 
+    /**
+     * 设置日志运行信息使能标志
+     */
     static set enableInfo(enable) {
         Log.ENABLE_INFO = enable;
         LoggingControl._notifyChange();
     }
 
+    /**
+     * 获取日志警告信息使能标志
+     */
     static get enableWarn() {
         return Log.ENABLE_WARN;
     }
 
+    /**
+     * 设置日志警告信息使能标志
+     */
     static set enableWarn(enable) {
         Log.ENABLE_WARN = enable;
         LoggingControl._notifyChange();
     }
 
+    /**
+     * 获取日志错误信息使能标志
+     */
     static get enableError() {
         return Log.ENABLE_ERROR;
     }
 
+    /**
+     * 设置日志错误信息使能标志
+     */
     static set enableError(enable) {
         Log.ENABLE_ERROR = enable;
         LoggingControl._notifyChange();
     }
 
+    /**
+     * 获取日志所有配置
+     */
     static getConfig() {
         return {
             globalTag: Log.GLOBAL_TAG,
@@ -114,6 +168,10 @@ class LoggingControl {
         };
     }
 
+    /**
+     * 应用日志所有配置
+     * @param {日志所有配置} config 
+     */
     static applyConfig(config) {
         Log.GLOBAL_TAG = config.globalTag;
         Log.FORCE_GLOBAL_TAG = config.forceGlobalTag;
@@ -125,6 +183,9 @@ class LoggingControl {
         Log.ENABLE_CALLBACK = config.enableCallback;
     }
 
+    /**
+     * 通知日志配置发生变化
+     */
     static _notifyChange() {
         let emitter = LoggingControl.emitter;
 
@@ -134,14 +195,26 @@ class LoggingControl {
         }
     }
 
+    /**
+     * 注册配置变化监听器
+     * @param {配置变化监听器} listener 
+     */
     static registerListener(listener) {
         LoggingControl.emitter.addListener('change', listener);
     }
 
+    /**
+     * 移除配置变化监听器
+     * @param {配置变化监听器} listener 
+     */
     static removeListener(listener) {
         LoggingControl.emitter.removeListener('change', listener);
     }
 
+    /**
+     * 添加日志监听器
+     * @param {日志监听器} listener 
+     */
     static addLogListener(listener) {
         Log.emitter.addListener('log', listener);
         if (Log.emitter.listenerCount('log') > 0) {
@@ -150,6 +223,10 @@ class LoggingControl {
         }
     }
 
+    /**
+     * 移除日志监听器
+     * @param {日志监听器} listener 
+     */
     static removeLogListener(listener) {
         Log.emitter.removeListener('log', listener);
         if (Log.emitter.listenerCount('log') === 0) {
@@ -160,6 +237,10 @@ class LoggingControl {
 
 }
 
+// 初始化日志控制器的事件发射器
 LoggingControl.emitter = new EventEmitter();
 
+/**
+ * 导出日志控制类
+ */
 export default LoggingControl;

@@ -24,10 +24,20 @@ import TransmuxingEvents from './transmuxing-events.js';
 import TransmuxingWorker from './transmuxing-worker.js';
 import MediaInfo from './media-info.js';
 
+/**
+ * 转封装器
+ */
 class Transmuxer {
 
+    /**
+     * 构造函数
+     * @param {mediaDataSource对象} mediaDataSource 
+     * @param {可选的配置对象} config 
+     */
     constructor(mediaDataSource, config) {
+        // 初始化TAG
         this.TAG = 'Transmuxer';
+        // 初始化事件发射器
         this._emitter = new EventEmitter();
 
         if (config.enableWorker && typeof (Worker) !== 'undefined') {
@@ -48,10 +58,12 @@ class Transmuxer {
                 this._controller = new TransmuxingController(mediaDataSource, config);
             }
         } else {
+            // 初始化TransmuxingController
             this._controller = new TransmuxingController(mediaDataSource, config);
         }
 
         if (this._controller) {
+            // 初始化TransmuxingController的事件监听器
             let ctl = this._controller;
             ctl.on(TransmuxingEvents.IO_ERROR, this._onIOError.bind(this));
             ctl.on(TransmuxingEvents.DEMUX_ERROR, this._onDemuxError.bind(this));
@@ -67,6 +79,9 @@ class Transmuxer {
         }
     }
 
+    /**
+     * 销毁转封装器
+     */
     destroy() {
         if (this._worker) {
             if (!this._workerDestroying) {
@@ -83,18 +98,34 @@ class Transmuxer {
         this._emitter = null;
     }
 
+    /**
+     * 添加事件监听器
+     * @param {事件} event 
+     * @param {监听器} listener 
+     */
     on(event, listener) {
         this._emitter.addListener(event, listener);
     }
 
+    /**
+     * 移除事件监听器
+     * @param {事件} event 
+     * @param {监听器} listener 
+     */
     off(event, listener) {
         this._emitter.removeListener(event, listener);
     }
 
+    /**
+     * 判断是否开启worker模式
+     */
     hasWorker() {
         return this._worker != null;
     }
 
+    /**
+     * 打开转封装器
+     */
     open() {
         if (this._worker) {
             this._worker.postMessage({cmd: 'start'});
@@ -103,6 +134,9 @@ class Transmuxer {
         }
     }
 
+    /**
+     * 关闭转封装器
+     */
     close() {
         if (this._worker) {
             this._worker.postMessage({cmd: 'stop'});
@@ -111,6 +145,10 @@ class Transmuxer {
         }
     }
 
+    /**
+     * seek操作
+     * @param {毫秒} milliseconds 
+     */
     seek(milliseconds) {
         if (this._worker) {
             this._worker.postMessage({cmd: 'seek', param: milliseconds});
@@ -119,6 +157,9 @@ class Transmuxer {
         }
     }
 
+    /**
+     * pause操作
+     */
     pause() {
         if (this._worker) {
             this._worker.postMessage({cmd: 'pause'});
@@ -127,6 +168,9 @@ class Transmuxer {
         }
     }
 
+    /**
+     * resume操作
+     */
     resume() {
         if (this._worker) {
             this._worker.postMessage({cmd: 'resume'});
@@ -254,4 +298,7 @@ class Transmuxer {
 
 }
 
+/**
+ * 导出转封装器类
+ */
 export default Transmuxer;

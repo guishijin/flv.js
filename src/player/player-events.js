@@ -26,4 +26,7 @@ const PlayerEvents = {
     STATISTICS_INFO: 'statistics_info'
 };
 
+/**
+ * 导出播放器事件对象
+ */
 export default PlayerEvents;

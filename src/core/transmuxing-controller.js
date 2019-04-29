@@ -28,14 +28,26 @@ import TransmuxingEvents from './transmuxing-events.js';
 import {LoaderStatus, LoaderErrors} from '../io/loader.js';
 
 // Transmuxing (IO, Demuxing, Remuxing) controller, with multipart support
+/**
+ * 转封装器控制器类
+ */
 class TransmuxingController {
 
+    /**
+     * 构造函数
+     * @param {mediaDataSource对象} mediaDataSource 
+     * @param {可选的配置对象} config 
+     */
     constructor(mediaDataSource, config) {
+        // 初始化TAG
         this.TAG = 'TransmuxingController';
+        // 初始化事件发射器
         this._emitter = new EventEmitter();
 
+        // 保存配置对象
         this._config = config;
 
+        // 将单片的媒体看做多片的媒体统一处理
         // treat single part media as multipart media, which has only one segment
         if (!mediaDataSource.segments) {
             mediaDataSource.segments = [{
@@ -53,10 +65,13 @@ class TransmuxingController {
             mediaDataSource.withCredentials = false;
         }
 
+        // 保存mediaDataSource对象
         this._mediaDataSource = mediaDataSource;
+        // 初始化单签的分片索引为0
         this._currentSegmentIndex = 0;
         let totalDuration = 0;
 
+        // 初始化所有的segment
         this._mediaDataSource.segments.forEach((segment) => {
             // timestampBase for each segment, and calculate total duration
             segment.timestampBase = totalDuration;
@@ -85,6 +100,9 @@ class TransmuxingController {
         this._statisticsReporter = null;
     }
 
+    /**
+     * 析构函数
+     */
     destroy() {
         this._mediaInfo = null;
         this._mediaDataSource = null;
@@ -109,23 +127,44 @@ class TransmuxingController {
         this._emitter = null;
     }
 
+    /**
+     * 添加事件监听器
+     * @param {事件} event 
+     * @param {监听器} listener 
+     */
     on(event, listener) {
         this._emitter.addListener(event, listener);
     }
 
+    /**
+     * 移除事件监听器
+     * @param {事件} event 
+     * @param {*监听器} listener 
+     */
     off(event, listener) {
         this._emitter.removeListener(event, listener);
     }
 
+    /**
+     * 启动转封装器控制器
+     */
     start() {
+        // 加载第0个分片
         this._loadSegment(0);
+        // 使能状态统计报告
         this._enableStatisticsReporter();
     }
 
+    /**
+     * 加载分片
+     * @param {分片索引} segmentIndex 
+     * @param {可选的optionFrom参数} optionalFrom 
+     */
     _loadSegment(segmentIndex, optionalFrom) {
         this._currentSegmentIndex = segmentIndex;
         let dataSource = this._mediaDataSource.segments[segmentIndex];
 
+        // 初始化IOController控制器对象ioctl
         let ioctl = this._ioctl = new IOController(dataSource, this._config, segmentIndex);
         ioctl.onError = this._onIOException.bind(this);
         ioctl.onSeeked = this._onIOSeeked.bind(this);
@@ -139,9 +178,13 @@ class TransmuxingController {
             ioctl.onDataArrival = this._onInitChunkArrival.bind(this);
         }
 
+        // 打开ioctl
         ioctl.open(optionalFrom);
     }
 
+    /**
+     * 停止转封装器控制器
+     */
     stop() {
         this._internalAbort();
         this._disableStatisticsReporter();
@@ -154,6 +197,9 @@ class TransmuxingController {
         }
     }
 
+    /**
+     * pause操作
+     */
     pause() {  // take a rest
         if (this._ioctl && this._ioctl.isWorking()) {
             this._ioctl.pause();
@@ -161,6 +207,9 @@ class TransmuxingController {
         }
     }
 
+    /**
+     * resume操作
+     */
     resume() {
         if (this._ioctl && this._ioctl.isPaused()) {
             this._ioctl.resume();
@@ -168,6 +217,10 @@ class TransmuxingController {
         }
     }
 
+    /**
+     * seek操作
+     * @param {毫秒} milliseconds 
+     */
     seek(milliseconds) {
         if (this._mediaInfo == null || !this._mediaInfo.isSeekable()) {
             return;
@@ -219,6 +272,10 @@ class TransmuxingController {
         this._enableStatisticsReporter();
     }
 
+    /**
+     * 搜索包含指定毫秒的片段
+     * @param {毫秒} milliseconds 
+     */
     _searchSegmentIndexContains(milliseconds) {
         let segments = this._mediaDataSource.segments;
         let idx = segments.length - 1;
@@ -232,6 +289,11 @@ class TransmuxingController {
         return idx;
     }
 
+    /**
+     * 初始的chunk到达事件处理
+     * @param {*} data 
+     * @param {*} byteStart 
+     */
     _onInitChunkArrival(data, byteStart) {
         let probeData = null;
         let consumed = 0;
@@ -243,13 +305,17 @@ class TransmuxingController {
 
             consumed = this._demuxer.parseChunks(data, byteStart);
         } else if ((probeData = FLVDemuxer.probe(data)).match) {
+            // TODO: flv 系列解析器创建和关联关系绑定
             // Always create new FLVDemuxer
+            // 创建新的flv解析器
             this._demuxer = new FLVDemuxer(probeData, this._config);
 
+            // 创建fmp4封装器
             if (!this._remuxer) {
                 this._remuxer = new MP4Remuxer(this._config);
             }
 
+            // 获取mediasource
             let mds = this._mediaDataSource;
             if (mds.duration != undefined && !isNaN(mds.duration)) {
                 this._demuxer.overridedDuration = mds.duration;
@@ -261,6 +327,7 @@ class TransmuxingController {
                 this._demuxer.overridedHasVideo = mds.hasVideo;
             }
 
+            // 设置解析器
             this._demuxer.timestampBase = mds.segments[this._currentSegmentIndex].timestampBase;
 
             this._demuxer.onError = this._onDemuxException.bind(this);
@@ -268,13 +335,16 @@ class TransmuxingController {
             this._demuxer.onMetaDataArrived = this._onMetaDataArrived.bind(this);
             this._demuxer.onScriptDataArrived = this._onScriptDataArrived.bind(this);
 
+            // 设置 解析器-》IO； 封装器-》解析器关联关系
             this._remuxer.bindDataSource(this._demuxer
                          .bindDataSource(this._ioctl
             ));
 
+            // 设置封装器的初始化片段回调和片段封装完毕回调
             this._remuxer.onInitSegment = this._onRemuxerInitSegmentArrival.bind(this);
             this._remuxer.onMediaSegment = this._onRemuxerMediaSegmentArrival.bind(this);
 
+            // 解析器解析数据
             consumed = this._demuxer.parseChunks(data, byteStart);
         } else {
             probeData = null;
@@ -367,6 +437,11 @@ class TransmuxingController {
         this._emitter.emit(TransmuxingEvents.INIT_SEGMENT, type, initSegment);
     }
 
+    /**
+     * fmp4片段封装完毕事件回调
+     * @param {*} type 音频或者视频数据 
+     * @param {*} mediaSegment 
+     */
     _onRemuxerMediaSegmentArrival(type, mediaSegment) {
         if (this._pendingSeekTime != null) {
             // Media segments after new-segment cross-seeking should be dropped.

@@ -125,4 +125,7 @@ function detect() {
 
 detect();
 
+/**
+ * 导出Browser对象
+ */
 export default Browser;

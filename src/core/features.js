@@ -19,13 +19,27 @@
 import IOController from '../io/io-controller.js';
 import {createDefaultConfig} from '../config.js';
 
+/**
+ * flvjs的特征描述类
+ * 
+ * 该类提供静态方法供调用。
+ */
 class Features {
 
+    /**
+     * 检查浏览器是否支持MSE-H264视频播放
+     * 
+     * @return  支持返回true
+     *          不支持返回false
+     */
     static supportMSEH264Playback() {
         return window.MediaSource &&
                window.MediaSource.isTypeSupported('video/mp4; codecs="avc1.42E01E,mp4a.40.2"');
     }
 
+    /**
+     * 检查浏览器是否支持NetworkStreamIO
+     */
     static supportNetworkStreamIO() {
         let ioctl = new IOController({}, createDefaultConfig());
         let loaderType = ioctl.loaderType;
@@ -33,6 +47,9 @@ class Features {
         return loaderType == 'fetch-stream-loader' || loaderType == 'xhr-moz-chunked-loader';
     }
 
+    /**
+     * 获取NetworkLoaderTypeName
+     */
     static getNetworkLoaderTypeName() {
         let ioctl = new IOController({}, createDefaultConfig());
         let loaderType = ioctl.loaderType;
@@ -40,6 +57,11 @@ class Features {
         return loaderType;
     }
 
+    /**
+     * 检查浏览器是否支持 NativeMedia播放
+     * 
+     * @param {mime类型} mimeType 
+     */
     static supportNativeMediaPlayback(mimeType) {
         if (Features.videoElement == undefined) {
             Features.videoElement = window.document.createElement('video');
@@ -48,6 +70,21 @@ class Features {
         return canPlay === 'probably' || canPlay == 'maybe';
     }
 
+    /**
+     * 获取特征列表
+     * 
+     * 返回结果对象格式：
+     * {
+     *       mseFlvPlayback,
+     *       mseLiveFlvPlayback,
+     *       networkStreamIO,
+     *       networkLoaderName,
+     *       nativeMP4H264Playback,
+     *       nativeWebmVP8Playback,
+     *       nativeWebmVP9Playback
+     *   }
+     * 
+     */
     static getFeatureList() {
         let features = {
             mseFlvPlayback: false,
