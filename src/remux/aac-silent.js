@@ -17,8 +17,17 @@
  * limitations under the License.
  */
 
+ /**
+  * AAC静音帧生成器类
+  */
 class AAC {
 
+    /**
+     * 获取静音帧
+     * @param {解码器} codec 
+     * @param {声道数} channelCount 
+     * @reutrn 静音帧数据
+     */
     static getSilentFrame(codec, channelCount) {
         if (codec === 'mp4a.40.2') {
             // handle LC-AAC
@@ -53,4 +62,7 @@ class AAC {
 
 }
 
+/**
+ * 导出AAC静音帧生成器类对象
+ */
 export default AAC;

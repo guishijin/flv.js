@@ -115,7 +115,6 @@ class MP4Remuxer {
     get onInitSegment() {
         return this._onInitSegment;
     }
-
     set onInitSegment(callback) {
         this._onInitSegment = callback;
     }
@@ -131,15 +130,21 @@ class MP4Remuxer {
     get onMediaSegment() {
         return this._onMediaSegment;
     }
-
     set onMediaSegment(callback) {
         this._onMediaSegment = callback;
     }
 
+    /**
+     * 插入 Discontinuity
+     */
     insertDiscontinuity() {
         this._audioNextDts = this._videoNextDts = undefined;
     }
 
+    /**
+     * seek操作： 这里不支持，直接清空分片缓存
+     * @param {原始nal的dts} originalDts 
+     */
     seek(originalDts) {
         this._audioStashedLastSample = null;
         this._videoStashedLastSample = null;
@@ -178,25 +183,37 @@ class MP4Remuxer {
         let container = 'mp4';
         let codec = metadata.codec;
 
+        // 根据类型 type：audio/video进行数据处理
         if (type === 'audio') {
+            // audio -- 音频处理：
+            // 保存元数据
             this._audioMeta = metadata;
+
+            // 音频格式是mp3的处理
             if (metadata.codec === 'mp3' && this._mp3UseMpegAudio) {
                 // 'audio/mpeg' for MP3 audio track
                 container = 'mpeg';
                 codec = '';
+                // 生成metabox
                 metabox = new Uint8Array();
             } else {
+                // 生成metabox
                 // 'audio/mp4, codecs="codec"'
                 metabox = MP4.generateInitSegment(metadata);
             }
         } else if (type === 'video') {
+            // video -- 视频处理：
+            // 保存元数据
             this._videoMeta = metadata;
+            // 生成metabox
             metabox = MP4.generateInitSegment(metadata);
         } else {
+            // 不支持其他的格式，直接返回
             return;
         }
 
         // dispatch metabox (Initialization Segment)
+        // 分发 metabox： 先判断回调函数存在，然后调用回调函数分发metabox
         if (!this._onInitSegment) {
             throw new IllegalStateException('MP4Remuxer: onInitSegment callback must be specified!');
         }

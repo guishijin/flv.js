@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+/**
+ * MSE事件常量定义
+ */
 const MSEEvents = {
     ERROR: 'error',
     SOURCE_OPEN: 'source_open',
@@ -23,4 +26,7 @@ const MSEEvents = {
     BUFFER_FULL: 'buffer_full'
 };
 
+/**
+ * 导出MSEEvents常量定义对象
+ */
 export default MSEEvents;

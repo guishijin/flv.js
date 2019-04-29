@@ -34,15 +34,20 @@ import TransmuxingEvents from './transmuxing-events.js';
        data: any
    }
  */
-
+/**
+ * 定义TransmuxingWorker为一个匿名函数
+ * @param {self} self 
+ */
 let TransmuxingWorker = function (self) {
 
     let TAG = 'TransmuxingWorker';
     let controller = null;
     let logcatListener = onLogcatCallback.bind(this);
 
+    // 安装垫片
     Polyfill.install();
 
+    // 添加监听器
     self.addEventListener('message', function (e) {
         switch (e.data.cmd) {
             case 'init':
@@ -95,6 +100,11 @@ let TransmuxingWorker = function (self) {
         }
     });
 
+    /**
+     * 初始段事件
+     * @param {audio/video} type 
+     * @param {初始的段} initSegment 
+     */
     function onInitSegment(type, initSegment) {
         let obj = {
             msg: TransmuxingEvents.INIT_SEGMENT,
@@ -106,6 +116,11 @@ let TransmuxingWorker = function (self) {
         self.postMessage(obj, [initSegment.data]);  // data: ArrayBuffer
     }
 
+    /**
+     * 媒体段事件
+     * @param {audio/video} type 
+     * @param {媒体段} mediaSegment 
+     */
     function onMediaSegment(type, mediaSegment) {
         let obj = {
             msg: TransmuxingEvents.MEDIA_SEGMENT,
@@ -117,6 +132,9 @@ let TransmuxingWorker = function (self) {
         self.postMessage(obj, [mediaSegment.data]);  // data: ArrayBuffer
     }
 
+    /**
+     * 加载完成
+     */
     function onLoadingComplete() {
         let obj = {
             msg: TransmuxingEvents.LOADING_COMPLETE
@@ -124,6 +142,9 @@ let TransmuxingWorker = function (self) {
         self.postMessage(obj);
     }
 
+    /**
+     * 过早结束
+     */
     function onRecoveredEarlyEof() {
         let obj = {
             msg: TransmuxingEvents.RECOVERED_EARLY_EOF
@@ -131,6 +152,10 @@ let TransmuxingWorker = function (self) {
         self.postMessage(obj);
     }
 
+    /**
+     * 媒体信息
+     * @param {媒体信息} mediaInfo 
+     */
     function onMediaInfo(mediaInfo) {
         let obj = {
             msg: TransmuxingEvents.MEDIA_INFO,
@@ -139,6 +164,10 @@ let TransmuxingWorker = function (self) {
         self.postMessage(obj);
     }
 
+    /**
+     * 媒体数据到达
+     * @param {媒体数据} metadata 
+     */
     function onMetaDataArrived(metadata) {
         let obj = {
             msg: TransmuxingEvents.METADATA_ARRIVED,
@@ -147,6 +176,10 @@ let TransmuxingWorker = function (self) {
         self.postMessage(obj);
     }
 
+    /**
+     * 脚本数据到达
+     * @param {脚本数据} data 
+     */
     function onScriptDataArrived(data) {
         let obj = {
             msg: TransmuxingEvents.SCRIPTDATA_ARRIVED,
@@ -155,6 +188,10 @@ let TransmuxingWorker = function (self) {
         self.postMessage(obj);
     }
 
+    /**
+     * 统计信息
+     * @param {统计信息} statInfo 
+     */
     function onStatisticsInfo(statInfo) {
         let obj = {
             msg: TransmuxingEvents.STATISTICS_INFO,
@@ -163,6 +200,11 @@ let TransmuxingWorker = function (self) {
         self.postMessage(obj);
     }
 
+    /**
+     * IO错误信息
+     * @param {类型} type 
+     * @param {信息} info 
+     */
     function onIOError(type, info) {
         self.postMessage({
             msg: TransmuxingEvents.IO_ERROR,
@@ -173,6 +215,11 @@ let TransmuxingWorker = function (self) {
         });
     }
 
+    /**
+     * 解封装器错误信息
+     * @param {类型} type 
+     * @param {信息} info 
+     */
     function onDemuxError(type, info) {
         self.postMessage({
             msg: TransmuxingEvents.DEMUX_ERROR,
@@ -183,6 +230,10 @@ let TransmuxingWorker = function (self) {
         });
     }
 
+    /**
+     * 
+     * @param {毫秒} milliseconds 
+     */
     function onRecommendSeekpoint(milliseconds) {
         self.postMessage({
             msg: TransmuxingEvents.RECOMMEND_SEEKPOINT,
@@ -190,6 +241,11 @@ let TransmuxingWorker = function (self) {
         });
     }
 
+    /**
+     * 日志信息
+     * @param {类型} type 
+     * @param {日志信息} str 
+     */
     function onLogcatCallback(type, str) {
         self.postMessage({
             msg: 'logcat_callback',
@@ -202,4 +258,7 @@ let TransmuxingWorker = function (self) {
 
 };
 
+/**
+ * 导出转封装工作线程类 - TransmuxingWorker
+ */
 export default TransmuxingWorker;

@@ -16,8 +16,14 @@
  * limitations under the License.
  */
 
+ /**
+  * 媒体信息类 - MediaInfo
+  */
 class MediaInfo {
 
+    /**
+     * 构造函数
+     */
     constructor() {
         this.mimeType = null;
         this.duration = null;
@@ -49,6 +55,9 @@ class MediaInfo {
         this.keyframesIndex = null;
     }
 
+    /**
+     * 检查是否完成
+     */
     isComplete() {
         let audioInfoComplete = (this.hasAudio === false) ||
                                 (this.hasAudio === true &&
@@ -78,10 +87,17 @@ class MediaInfo {
                videoInfoComplete;
     }
 
+    /**
+     * 检查是否可进行seek操作
+     */
     isSeekable() {
         return this.hasKeyframesIndex === true;
     }
 
+    /**
+     * 获取milliseconds最近的I帧
+     * @param {毫秒} milliseconds 
+     */
     getNearestKeyframe(milliseconds) {
         if (this.keyframesIndex == null) {
             return null;
@@ -97,6 +113,11 @@ class MediaInfo {
         };
     }
 
+    /**
+     * 搜索
+     * @param {list} list 
+     * @param {value} value 
+     */
     _search(list, value) {
         let idx = 0;
 
@@ -127,4 +148,7 @@ class MediaInfo {
 
 }
 
+/**
+ * 导出媒体信息类 - MediaInfo
+ */
 export default MediaInfo;

@@ -16,6 +16,9 @@
  * limitations under the License.
  */
 
+/**
+ * 装封装器事件定义常量
+ */
 const TransmuxingEvents = {
     IO_ERROR: 'io_error',
     DEMUX_ERROR: 'demux_error',
@@ -30,4 +33,7 @@ const TransmuxingEvents = {
     RECOMMEND_SEEKPOINT: 'recommend_seekpoint'
 };
 
+/**
+ * 导出转封装器事件定义常量对象
+ */
 export default TransmuxingEvents;

@@ -18,9 +18,18 @@
  */
 
 //  MP4 boxes generator for ISO BMFF (ISO Base Media File Format, defined in ISO/IEC 14496-12)
+/**
+ * MP4 boxes生成器 
+ * 用于 ISO BMFF (ISO Base Media File Format, defined in ISO/IEC 14496-12) 标准
+ */
 class MP4 {
 
+    /**
+     * 初始化
+     */
     static init() {
+
+        // 初始化types属性
         MP4.types = {
             avc1: [], avcC: [], btrt: [], dinf: [],
             dref: [], esds: [], ftyp: [], hdlr: [],
@@ -33,6 +42,7 @@ class MP4 {
             vmhd: [], smhd: [], '.mp3': []
         };
 
+        // 初始化 types的各个属性值和属性名保持一致
         for (let name in MP4.types) {
             if (MP4.types.hasOwnProperty(name)) {
                 MP4.types[name] = [
@@ -44,8 +54,10 @@ class MP4 {
             }
         }
 
+        // 定义常量
         let constants = MP4.constants = {};
 
+        // 初始化 constants.FTYP 常量值
         constants.FTYP = new Uint8Array([
             0x69, 0x73, 0x6F, 0x6D,  // major_brand: isom
             0x0,  0x0,  0x0,  0x1,   // minor_version: 0x01
@@ -53,24 +65,29 @@ class MP4 {
             0x61, 0x76, 0x63, 0x31   // avc1
         ]);
 
+        // 初始化 constants.STSD_PREFIX 常量值
         constants.STSD_PREFIX = new Uint8Array([
             0x00, 0x00, 0x00, 0x00,  // version(0) + flags
             0x00, 0x00, 0x00, 0x01   // entry_count
         ]);
 
+        // 初始化 constants.STTS 常量值
         constants.STTS = new Uint8Array([
             0x00, 0x00, 0x00, 0x00,  // version(0) + flags
             0x00, 0x00, 0x00, 0x00   // entry_count
         ]);
 
+        // 初始化 constants.STSC STCO 常量值
         constants.STSC = constants.STCO = constants.STTS;
 
+        // 初始化 constants.STSZ 常量值
         constants.STSZ = new Uint8Array([
             0x00, 0x00, 0x00, 0x00,  // version(0) + flags
             0x00, 0x00, 0x00, 0x00,  // sample_size
             0x00, 0x00, 0x00, 0x00   // sample_count
         ]);
 
+        // 初始化 constants.HDLR_VIDEO 常量值
         constants.HDLR_VIDEO = new Uint8Array([
             0x00, 0x00, 0x00, 0x00,  // version(0) + flags
             0x00, 0x00, 0x00, 0x00,  // pre_defined
@@ -83,6 +100,7 @@ class MP4 {
             0x64, 0x6C, 0x65, 0x72, 0x00  // name: VideoHandler
         ]);
 
+        // 初始化 constants.HDLR_AUDIO 常量
         constants.HDLR_AUDIO = new Uint8Array([
             0x00, 0x00, 0x00, 0x00,  // version(0) + flags
             0x00, 0x00, 0x00, 0x00,  // pre_defined
@@ -95,6 +113,7 @@ class MP4 {
             0x64, 0x6C, 0x65, 0x72, 0x00  // name: SoundHandler
         ]);
 
+        // 初始化 constants.DREF 常量
         constants.DREF = new Uint8Array([
             0x00, 0x00, 0x00, 0x00,  // version(0) + flags
             0x00, 0x00, 0x00, 0x01,  // entry_count
@@ -103,12 +122,14 @@ class MP4 {
             0x00, 0x00, 0x00, 0x01   // version(0) + flags
         ]);
 
+        // 初始化 constants.SMHD 常量
         // Sound media header
         constants.SMHD = new Uint8Array([
             0x00, 0x00, 0x00, 0x00,  // version(0) + flags
             0x00, 0x00, 0x00, 0x00   // balance(2) + reserved(2)
         ]);
 
+        // 初始化 constants.VMHD 常量
         // video media header
         constants.VMHD = new Uint8Array([
             0x00, 0x00, 0x00, 0x01,  // version(0) + flags
@@ -119,45 +140,76 @@ class MP4 {
     }
 
     // Generate a box
+    /**
+     * 生成一个box
+     * @param {类型-any} type
+     * @param {动态参数-any[]} ...args 
+     * @return {box-Uint8Array} result
+     */
     static box(type) {
+        // 初始化size ：size占用4字节 + type占用4字节
         let size = 8;
         let result = null;
         let datas = Array.prototype.slice.call(arguments, 1);
         let arrayCount = datas.length;
 
+        // 累加计算所有的动态参数的长度到size中
         for (let i = 0; i < arrayCount; i++) {
             size += datas[i].byteLength;
         }
 
+        // 创建result缓存
         result = new Uint8Array(size);
+
+        // 放置size到result中
         result[0] = (size >>> 24) & 0xFF;  // size
         result[1] = (size >>> 16) & 0xFF;
         result[2] = (size >>>  8) & 0xFF;
         result[3] = (size) & 0xFF;
 
+        // 放置type到result中
         result.set(type, 4);  // type
 
+        // 顺序放置动态参数到result中
         let offset = 8;
         for (let i = 0; i < arrayCount; i++) {  // data body
             result.set(datas[i], offset);
             offset += datas[i].byteLength;
         }
 
+        // 返回result
         return result;
     }
 
     // emit ftyp & moov
+    /**
+     * 生成初始的分片
+     * @param {元信息} meta 
+     * @return 片段数据数组: ftyp + moov
+     */
     static generateInitSegment(meta) {
+        // 生成 ftyp 的box
         let ftyp = MP4.box(MP4.types.ftyp, MP4.constants.FTYP);
+        // 生成 moov 的box
         let moov = MP4.moov(meta);
 
+        // 片段缓冲区
         let result = new Uint8Array(ftyp.byteLength + moov.byteLength);
+        // 复制ftyp到 result
         result.set(ftyp, 0);
+        // 追加复制moov到 result
         result.set(moov, ftyp.byteLength);
+        // 返回初始的分片数据数组
         return result;
     }
 
     // Movie metadata box
+    /**
+     * 生成 视频元数据box ： moov box
+     * 
+     * @param {元数据} meta 
+     * @return moov： mvhd + trak + mvex
+     */
     static moov(meta) {
         let mvhd = MP4.mvhd(meta.timescale, meta.duration);
         let trak = MP4.trak(meta);
@@ -166,6 +218,12 @@ class MP4 {
     }
 
     // Movie header box
+    /**
+     * 生成 视频头信息box: mvhd box
+     * @param {timescale} timescale 
+     * @param {duration} duration 
+     * @return mvhd: mvhd
+     */
     static mvhd(timescale, duration) {
         return MP4.box(MP4.types.mvhd, new Uint8Array([
             0x00, 0x00, 0x00, 0x00,  // version(0) + flags
@@ -203,11 +261,21 @@ class MP4 {
     }
 
     // Track box
+    /**
+     * 生成 track box
+     * @param {元数据} meta 
+     * @retrun trak: tkhd + mdia
+     */
     static trak(meta) {
         return MP4.box(MP4.types.trak, MP4.tkhd(meta), MP4.mdia(meta));
     }
 
     // Track header box
+    /**
+     * 生成 tkhd box
+     * @param {元数据} meta 
+     * @return tkhd: tkhd
+     */
     static tkhd(meta) {
         let trackId = meta.id, duration = meta.duration;
         let width = meta.presentWidth, height = meta.presentHeight;
@@ -248,11 +316,21 @@ class MP4 {
     }
 
     // Media Box
+    /**
+     * 生成mdia box
+     * @param {元数据} meta 
+     * @return mdia: mdhd + hdlr + minf
+     */
     static mdia(meta) {
         return MP4.box(MP4.types.mdia, MP4.mdhd(meta), MP4.hdlr(meta), MP4.minf(meta));
     }
 
     // Media header box
+    /**
+     * 生成 mdhd
+     * @param {元数据} meta 
+     * @return mdhd: mdhd
+     */
     static mdhd(meta) {
         let timescale = meta.timescale;
         let duration = meta.duration;
@@ -274,6 +352,11 @@ class MP4 {
     }
 
     // Media handler reference box
+    /**
+     * 生成 hdlr
+     * @param {元数据} meta 
+     * @return hdlr: (audio/video) hdlr
+     */
     static hdlr(meta) {
         let data = null;
         if (meta.type === 'audio') {
@@ -285,6 +368,11 @@ class MP4 {
     }
 
     // Media infomation box
+    /**
+     * 生成 minf
+     * @param {元数据} meta 
+     * @return minf: (audio/video)xmhd + dinf + stbl
+     */
     static minf(meta) {
         let xmhd = null;
         if (meta.type === 'audio') {
@@ -296,6 +384,10 @@ class MP4 {
     }
 
     // Data infomation box
+    /**
+     * 生成 dinf
+     * @return dinf: dinf(dref)
+     */
     static dinf() {
         let result = MP4.box(MP4.types.dinf,
             MP4.box(MP4.types.dref, MP4.constants.DREF)
@@ -304,6 +396,11 @@ class MP4 {
     }
 
     // Sample table box
+    /**
+     * 生成stbl
+     * @param {元数据} meta 
+     * @return stbl: stsd + stts + stsc + stsz + stco
+     */
     static stbl(meta) {
         let result = MP4.box(MP4.types.stbl,  // type: stbl
             MP4.stsd(meta),  // Sample Description Table
@@ -316,6 +413,11 @@ class MP4 {
     }
 
     // Sample description box
+    /**
+     * 生成stsd
+     * @param {元数据} meta 
+     * @return stsd: stsd(audio(mp3/mp4a)/video(avc1))
+     */
     static stsd(meta) {
         if (meta.type === 'audio') {
             if (meta.codec === 'mp3') {
@@ -328,6 +430,11 @@ class MP4 {
         }
     }
 
+    /**
+     * 生成mp3
+     * @param {元数据} meta
+     * @return mp3: mp3 
+     */
     static mp3(meta) {
         let channelCount = meta.channelCount;
         let sampleRate = meta.audioSampleRate;
@@ -348,6 +455,11 @@ class MP4 {
         return MP4.box(MP4.types['.mp3'], data);
     }
 
+    /**
+     * 生成mp4a
+     * @param {元数据} meta 
+     * @return mp4a: mp4a + esds
+     */
     static mp4a(meta) {
         let channelCount = meta.channelCount;
         let sampleRate = meta.audioSampleRate;
@@ -368,6 +480,11 @@ class MP4 {
         return MP4.box(MP4.types.mp4a, data, MP4.esds(meta));
     }
 
+    /**
+     * 生成esds
+     * @param {元数据} meta 
+     * @return esds: esds
+     */
     static esds(meta) {
         let config = meta.config || [];
         let configSize = config.length;
@@ -398,6 +515,11 @@ class MP4 {
         return MP4.box(MP4.types.esds, data);
     }
 
+    /**
+     * 生成avc1
+     * @param {元数据} meta 
+     * @return avc1: avc1 + avcC
+     */
     static avc1(meta) {
         let avcc = meta.avcc;
         let width = meta.codecWidth, height = meta.codecHeight;
@@ -433,11 +555,21 @@ class MP4 {
     }
 
     // Movie Extends box
+    /**
+     * 生成mvex
+     * @param {元数据} meta 
+     * @return mvex: mvex(trex)
+     */
     static mvex(meta) {
         return MP4.box(MP4.types.mvex, MP4.trex(meta));
     }
 
     // Track Extends box
+    /**
+     * 生成trex
+     * @param {元数据} meta 
+     * @return trex: trex
+     */
     static trex(meta) {
         let trackId = meta.id;
         let data = new Uint8Array([
@@ -455,10 +587,21 @@ class MP4 {
     }
 
     // Movie fragment box
+    /**
+     * 生成moof
+     * @param {track} track 
+     * @param {baseMediaDecodeTime} baseMediaDecodeTime 
+     * @return moof: mfhd + traf
+     */
     static moof(track, baseMediaDecodeTime) {
         return MP4.box(MP4.types.moof, MP4.mfhd(track.sequenceNumber), MP4.traf(track, baseMediaDecodeTime));
     }
 
+    /**
+     * 生成mfhd
+     * @param {sequenceNumber} sequenceNumber 
+     * @return mfhd: mfhd
+     */
     static mfhd(sequenceNumber) {
         let data = new Uint8Array([
             0x00, 0x00, 0x00, 0x00,
@@ -471,6 +614,12 @@ class MP4 {
     }
 
     // Track fragment box
+    /**
+     * 生成traf
+     * @param {track} track 
+     * @param {baseMediaDecodeTime} baseMediaDecodeTime 
+     * @return traf: tfhd + tfdt + trun + sdtp
+     */
     static traf(track, baseMediaDecodeTime) {
         let trackId = track.id;
 
@@ -497,6 +646,11 @@ class MP4 {
     }
 
     // Sample Dependency Type box
+    /**
+     * 生成 sdtp
+     * @param {track} track 
+     * @return sdtp: sdtp
+     */
     static sdtp(track) {
         let samples = track.samples || [];
         let sampleCount = samples.length;
@@ -513,6 +667,12 @@ class MP4 {
     }
 
     // Track fragment run box
+    /**
+     * 生成trun
+     * @param {track} track 
+     * @param {offset} offset 
+     * @return trun: trun
+     */
     static trun(track, offset) {
         let samples = track.samples || [];
         let sampleCount = samples.length;
@@ -558,12 +718,21 @@ class MP4 {
         return MP4.box(MP4.types.trun, data);
     }
 
+    /**
+     * 生成mdat
+     * @param {data} data 
+     * @return mdat: mdat
+     */
     static mdat(data) {
         return MP4.box(MP4.types.mdat, data);
     }
 
 }
 
+// 初始化MP4类
 MP4.init();
 
+/**
+ * 导出MP4生成器类对象
+ */
 export default MP4;

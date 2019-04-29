@@ -511,4 +511,7 @@ class TransmuxingController {
 
 }
 
+/**
+ * 导出转封装器控制器类 - TransmuxingController
+ */
 export default TransmuxingController;
