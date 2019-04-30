@@ -23,6 +23,9 @@ import Browser from '../utils/browser.js';
 import {SampleInfo, MediaSegmentInfo, MediaSegmentInfoList} from '../core/media-segment-info.js';
 import {IllegalStateException} from '../utils/exception.js';
 
+// 打印输出uint8Array
+import uint8ArrayPrint from '../utils/uint8array-print.js';
+
 
 // Fragmented mp4 remuxer
 /**
@@ -174,7 +177,7 @@ class MP4Remuxer {
 
     /**
      * 轨道元数据信息到达事件处理
-     * @param {类型} type 
+     * @param {类型} type 'audio' / 'video'
      * @param {元数据} metadata 
      */
     _onTrackMetadataReceived(type, metadata) {
@@ -226,6 +229,11 @@ class MP4Remuxer {
         });
     }
 
+    /**
+     * 计算dts基准
+     * @param {音频轨道} audioTrack 
+     * @param {视频轨道} videoTrack 
+     */
     _calculateDtsBase(audioTrack, videoTrack) {
         if (this._dtsBaseInited) {
             return;
@@ -242,6 +250,9 @@ class MP4Remuxer {
         this._dtsBaseInited = true;
     }
 
+    /**
+     * 刷新Stashed缓存采样
+     */
     flushStashedSamples() {
         let videoSample = this._videoStashedLastSample;
         let audioSample = this._audioStashedLastSample;
@@ -279,6 +290,11 @@ class MP4Remuxer {
         this._remuxAudio(audioTrack, true);
     }
 
+    /**
+     * 封装音频轨道
+     * @param {音频轨道} audioTrack 
+     * @param {强制标志} force 
+     */
     _remuxAudio(audioTrack, force) {
         if (this._audioMeta == null) {
             return;
@@ -568,6 +584,12 @@ class MP4Remuxer {
         track.samples = [];
         track.length = 0;
 
+        // TODO: 调试信息
+        let moofboxstr = uint8ArrayPrint(moofbox, 0, moofbox.length > 30 ? 30 : moofbox.length);
+        let mdatboxstr = uint8ArrayPrint(mdatbox, 0, mdatbox.length > 30 ? 30 : mdatbox.length);
+        Log.i(this.TAG, 'moof - audio : ' + moofboxstr);
+        Log.i(this.TAG, 'mdat - audio : ' + mdatboxstr);
+
         let segment = {
             type: 'audio',
             data: this._mergeBoxes(moofbox, mdatbox).buffer,
@@ -584,6 +606,11 @@ class MP4Remuxer {
         this._onMediaSegment('audio', segment);
     }
 
+    /**
+     * 封装视频轨道
+     * @param {视频轨道} videoTrack 
+     * @param {强制标志} force 
+     */
     _remuxVideo(videoTrack, force) {
         if (this._videoMeta == null) {
             return;
@@ -772,6 +799,13 @@ class MP4Remuxer {
         track.samples = [];
         track.length = 0;
 
+        // TODO: 调试信息
+        let moofboxstr = uint8ArrayPrint(moofbox, 0, moofbox.length > 30 ? 30 : moofbox.length);
+        let mdatboxstr = uint8ArrayPrint(mdatbox, 0, mdatbox.length > 30 ? 30 : mdatbox.length);
+        Log.i(this.TAG, 'moof - video : ' + moofboxstr);
+        Log.i(this.TAG, 'mdat - video : ' + mdatboxstr);
+
+        // 通知mse-controller视频片段生成
         this._onMediaSegment('video', {
             type: 'video',
             data: this._mergeBoxes(moofbox, mdatbox).buffer,
@@ -780,6 +814,12 @@ class MP4Remuxer {
         });
     }
 
+    /**
+     * 合并moof和mdatbox
+     * @param {moof box} moof 
+     * @param {mdat box} mdat 
+     * @return {Uint8Array} result： moof + mdat
+     */
     _mergeBoxes(moof, mdat) {
         let result = new Uint8Array(moof.byteLength + mdat.byteLength);
         result.set(moof, 0);

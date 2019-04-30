@@ -336,9 +336,9 @@ class TransmuxingController {
             this._demuxer.onScriptDataArrived = this._onScriptDataArrived.bind(this);
 
             // 设置 解析器-》IO； 封装器-》解析器关联关系
-            this._remuxer.bindDataSource(this._demuxer
-                         .bindDataSource(this._ioctl
-            ));
+            this._remuxer.bindDataSource(
+                this._demuxer.bindDataSource(this._ioctl)
+            );
 
             // 设置封装器的初始化片段回调和片段封装完毕回调
             this._remuxer.onInitSegment = this._onRemuxerInitSegmentArrival.bind(this);

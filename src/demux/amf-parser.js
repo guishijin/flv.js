@@ -26,8 +26,17 @@ let le = (function () {
     return (new Int16Array(buf))[0] === 256;  // platform-spec read, if equal then LE
 })();
 
+/**
+ * AMF解析类
+ */
 class AMF {
 
+    /**
+     * 解析脚本数据
+     * @param {缓冲区} arrayBuffer 
+     * @param {数据起始位置} dataOffset 
+     * @param {数据大小} dataSize 
+     */
     static parseScriptData(arrayBuffer, dataOffset, dataSize) {
         let data = {};
 
@@ -43,6 +52,12 @@ class AMF {
         return data;
     }
 
+    /**
+     * 解析对象
+     * @param {缓冲区} arrayBuffer 
+     * @param {数据起始位置} dataOffset 
+     * @param {数据大小} dataSize 
+     */
     static parseObject(arrayBuffer, dataOffset, dataSize) {
         if (dataSize < 3) {
             throw new IllegalStateException('Data not enough when parse ScriptDataObject');
@@ -61,10 +76,22 @@ class AMF {
         };
     }
 
+    /**
+     * 解析变量
+     * @param {缓冲区} arrayBuffer 
+     * @param {数据起始位置} dataOffset 
+     * @param {数据大小} dataSize 
+     */
     static parseVariable(arrayBuffer, dataOffset, dataSize) {
         return AMF.parseObject(arrayBuffer, dataOffset, dataSize);
     }
 
+    /**
+     * 解析字符串
+     * @param {缓冲区} arrayBuffer 
+     * @param {数据起始位置} dataOffset 
+     * @param {数据大小} dataSize 
+     */
     static parseString(arrayBuffer, dataOffset, dataSize) {
         if (dataSize < 2) {
             throw new IllegalStateException('Data not enough when parse String');
@@ -85,6 +112,12 @@ class AMF {
         };
     }
 
+    /**
+     * 解析长字符串
+     * @param {缓冲区} arrayBuffer 
+     * @param {数据起始位置} dataOffset 
+     * @param {数据大小} dataSize 
+     */
     static parseLongString(arrayBuffer, dataOffset, dataSize) {
         if (dataSize < 4) {
             throw new IllegalStateException('Data not enough when parse LongString');
@@ -105,6 +138,12 @@ class AMF {
         };
     }
 
+    /**
+     * 解析日期
+     * @param {缓冲区} arrayBuffer 
+     * @param {数据起始位置} dataOffset 
+     * @param {数据大小} dataSize 
+     */
     static parseDate(arrayBuffer, dataOffset, dataSize) {
         if (dataSize < 10) {
             throw new IllegalStateException('Data size invalid when parse Date');
@@ -120,6 +159,12 @@ class AMF {
         };
     }
 
+    /**
+     * 解析值
+     * @param {缓冲区} arrayBuffer 
+     * @param {数据起始位置} dataOffset 
+     * @param {数据大小} dataSize 
+     */
     static parseValue(arrayBuffer, dataOffset, dataSize) {
         if (dataSize < 1) {
             throw new IllegalStateException('Data not enough when parse Value');
@@ -240,4 +285,7 @@ class AMF {
 
 }
 
+/**
+ * 导出AMF类
+ */
 export default AMF;

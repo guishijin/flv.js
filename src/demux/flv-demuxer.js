@@ -23,11 +23,19 @@ import DemuxErrors from './demux-errors.js';
 import MediaInfo from '../core/media-info.js';
 import {IllegalStateException} from '../utils/exception.js';
 
+/**
+ * 16位数据交换高8位和低8位
+ * @param {16位无符号整型} src 
+ */
 function Swap16(src) {
     return (((src >>> 8) & 0xFF) |
             ((src & 0xFF) << 8));
 }
 
+/**
+ * 32位数据交换高低字节顺序依次交换
+ * @param {32位无符号整型} src 
+ */
 function Swap32(src) {
     return (((src & 0xFF000000) >>> 24) |
             ((src & 0x00FF0000) >>> 8)  |
@@ -35,6 +43,11 @@ function Swap32(src) {
             ((src & 0x000000FF) << 24));
 }
 
+/**
+ * 从数组中读取一个32位数
+ * @param {数组} array 
+ * @param {索引} index 
+ */
 function ReadBig32(array, index) {
     return ((array[index] << 24)     |
             (array[index + 1] << 16) |
@@ -42,9 +55,62 @@ function ReadBig32(array, index) {
             (array[index + 3]));
 }
 
-
+/**
+ * FLV解封装类
+ * 
+ * FLV - 文件格式：
+ * ----------------------------------
+ * |    Header                      |
+ * ----------------------------------
+ * |    PreviousTagSize0            |   必须是 0
+ * ----------------------------------
+ * |    Tag1                        |
+ * ----------------------------------
+ * |    PreviousTagSize1            |   Tag1的大小
+ * ----------------------------------
+ * |    Tag2                        |   
+ * ----------------------------------
+ * |    PreviousTagSize2            |   Tag2的大小
+ * ----------------------------------
+ * |    Tag3                        |
+ * ----------------------------------
+ * |    PreviousTagSize3            |   Tag3的大小
+ * ----------------------------------
+ * |    ......                      |
+ * ----------------------------------
+ * |    ......                      |
+ * ----------------------------------
+ * |    TagN                        |  
+ * ----------------------------------
+ * |    PreviousTagSizeN            |   TagN的大小
+ * ----------------------------------
+ * 
+ * Tag的格式：
+ * ----------------------------------
+ * Field        type        Comment
+ * ----------------------------------
+ * TAG类型      UI8         8: audio  9: video  18: script data——这里是一些描述信息。all others: reserved其他所有值未使用。
+ * ----------------------------------
+ * 数据大小     UI24        数据区的大小，不包括包头。包头总大小是11个字节。
+ * ----------------------------------
+ * 时戳         UI24        当前帧时戳，单位是毫秒。相对于FLV文件的第一个TAG时戳。第一个tag的时戳总是0。——不是时戳增量，rtmp中是时戳增量。
+ * ----------------------------------
+ * 时戳扩展字段  UI8        如果时戳大于0xFFFFFF，将会使用这个字节。这个字节是时戳的高8位，上面的三个字节是低24位。
+ * ----------------------------------
+ * 流ID         U24         总是0
+ * ----------------------------------
+ * 数据区       UI8[n]      
+ * ----------------------------------
+ * 
+ * 
+ */
 class FLVDemuxer {
 
+    /**
+     * 构造函数
+     * @param {probeData} probeData 
+     * @param {config} config 
+     */
     constructor(probeData, config) {
         this.TAG = 'FLVDemuxer';
 
@@ -104,6 +170,7 @@ class FLVDemuxer {
         this._mpegAudioL2BitRateTable = [0, 32, 48, 56,  64,  80,  96, 112, 128, 160, 192, 224, 256, 320, 384, -1];
         this._mpegAudioL3BitRateTable = [0, 32, 40, 48,  56,  64,  80,  96, 112, 128, 160, 192, 224, 256, 320, -1];
 
+        // 初始化视频轨道和音频轨道
         this._videoTrack = {type: 'video', id: 1, sequenceNumber: 0, samples: [], length: 0};
         this._audioTrack = {type: 'audio', id: 2, sequenceNumber: 0, samples: [], length: 0};
 
@@ -114,6 +181,9 @@ class FLVDemuxer {
         })();
     }
 
+    /**
+     * 析构函数
+     */
     destroy() {
         this._mediaInfo = null;
         this._metadata = null;
@@ -130,23 +200,54 @@ class FLVDemuxer {
         this._onDataAvailable = null;
     }
 
+    /**
+     * 解析指定的buffer中的flv文件头 Header的信息格式
+     * 
+     *  Field           | type |    Comment
+     * ————————————————————————————————————————————————————————————————————————     
+     *  [0] 签名        | UI8  |    ’F’(0X46)
+     * ————————————————————————————————————————————————————————————————————————    
+     *  [1] 签名        | UI8  |    ‘L’(0X4C)
+     * ————————————————————————————————————————————————————————————————————————    
+     *  [2] 签名        | UI8  |    ‘V’(0x56)
+     * ————————————————————————————————————————————————————————————————————————    
+     *  [3] 版本        | UI8  |    FLV的版本：0x01 表示FLV版本是1
+     * ————————————————————————————————————————————————————————————————————————    
+     *  [4] 保留字段    | UB5  |    前五位必须是0
+     * ————————————————————————————————————————————————————————————————————————    
+     *  [4] 是否有音频流 | UB1  |    音频流是否存在标志
+     * ————————————————————————————————————————————————————————————————————————    
+     *  [4]保留字段     | UB1  |    必须是0
+     * ————————————————————————————————————————————————————————————————————————    
+     *  [4]是否有视频流  | UB1  |    视频流是否存在标志
+     * ————————————————————————————————————————————————————————————————————————    
+     *  [5-8]文件头大小  | UI32 |   FLV版本1时填写9，表明的是FLV头的大小，为后期的FLV版本扩展使用。包括这四个字节。
+     *                            数据的起始位置就是从文件开头偏移这么多的大小。
+     * ————————————————————————————————————————————————————————————————————————
+     * 
+     * @param {buffer} buffer 
+     */
     static probe(buffer) {
         let data = new Uint8Array(buffer);
         let mismatch = {match: false};
 
+        // ‘F’-‘L’-‘V’-‘version:1’判断
         if (data[0] !== 0x46 || data[1] !== 0x4C || data[2] !== 0x56 || data[3] !== 0x01) {
             return mismatch;
         }
 
+        // 音频和视频标志解析
         let hasAudio = ((data[4] & 4) >>> 2) !== 0;
         let hasVideo = (data[4] & 1) !== 0;
 
+        // flv头大小读取
         let offset = ReadBig32(data, 5);
 
         if (offset < 9) {
             return mismatch;
         }
 
+        // 返回解析后的头信息
         return {
             match: true,
             consumed: offset,
@@ -156,7 +257,12 @@ class FLVDemuxer {
         };
     }
 
+    /**
+     * 绑定数据源 ： 对于demuxer来说源为io
+     * @param {} loader IOloader
+     */
     bindDataSource(loader) {
+        // 设定loader的数据到达处理函数
         loader.onDataArrival = this.parseChunks.bind(this);
         return this;
     }
@@ -247,10 +353,16 @@ class FLVDemuxer {
         this._mediaInfo.hasVideo = hasVideo;
     }
 
+    /**
+     * 重置MediaInfo
+     */
     resetMediaInfo() {
         this._mediaInfo = new MediaInfo();
     }
 
+    /**
+     * 检查初始的元信息是否已经分发给消费者-mp4remuxer
+     */
     _isInitialMetadataDispatched() {
         if (this._hasAudio && this._hasVideo) {  // both audio & video
             return this._audioInitialMetadataDispatched && this._videoInitialMetadataDispatched;
@@ -265,62 +377,88 @@ class FLVDemuxer {
     }
 
     // function parseChunks(chunk: ArrayBuffer, byteStart: number): number;
+    /**
+     * 接收ioLoadre的分块数据，并进行处理
+     * @param {chunk - ArrayBuffer} chunk 数据块数组缓冲区
+     * @param {byteStart - number} byteStart 数据起始的位置
+     * 
+     * @return {offset - number} offset： 解析后的有效数据起始位置
+     */
     parseChunks(chunk, byteStart) {
         if (!this._onError || !this._onMediaInfo || !this._onTrackMetadata || !this._onDataAvailable) {
             throw new IllegalStateException('Flv: onError & onMediaInfo & onTrackMetadata & onDataAvailable callback must be specified');
         }
 
+        // 偏移量计数器
         let offset = 0;
         let le = this._littleEndian;
 
+        // 如果是从缓冲区的头开始，则表示缓冲区中有FLV的头信息
         if (byteStart === 0) {  // buffer with FLV header
             if (chunk.byteLength > 13) {
+                // 解析 flv的头信息
                 let probeData = FLVDemuxer.probe(chunk);
+
+                // 跳过FLV头
                 offset = probeData.dataOffset;
             } else {
                 return 0;
             }
         }
 
+        // 第一次解析处理
         if (this._firstParse) {  // handle PreviousTagSize0 before Tag1
+            // 清除第一次解析标志
             this._firstParse = false;
             if (byteStart + offset !== this._dataOffset) {
                 Log.w(this.TAG, 'First time parsing but chunk byteStart invalid!');
             }
 
+            // 解析第一个tag的prevTagSize，该值必须为0
             let v = new DataView(chunk, offset);
             let prevTagSize0 = v.getUint32(0, !le);
             if (prevTagSize0 !== 0) {
                 Log.w(this.TAG, 'PrevTagSize0 !== 0 !!!');
             }
+            // 跳过size的4个字节
             offset += 4;
         }
 
+        // 循环处理
         while (offset < chunk.byteLength) {
+            // 设置分发标志
             this._dispatch = true;
 
             let v = new DataView(chunk, offset);
 
+            // 检查缓冲区是否满足解析需求
             if (offset + 11 + 4 > chunk.byteLength) {
                 // data not enough for parsing an flv tag
                 break;
             }
 
+            // 读取tag的类型
             let tagType = v.getUint8(0);
+            // 读取tag的数据大小
             let dataSize = v.getUint32(0, !le) & 0x00FFFFFF;
 
+            // 检查缓冲区是否满足解析需求
             if (offset + 11 + dataSize + 4 > chunk.byteLength) {
                 // data not enough for parsing actual data body
                 break;
             }
 
+            // 仅处理 8-音频；9-视频；18-脚本类型的tag
             if (tagType !== 8 && tagType !== 9 && tagType !== 18) {
                 Log.w(this.TAG, `Unsupported tag type ${tagType}, skipped`);
                 // consume the whole tag (skip it)
                 offset += 11 + dataSize + 4;
+
+                // 继续处理后续的tag
                 continue;
             }
 
+            // 获取时间戳
             let ts2 = v.getUint8(4);
             let ts1 = v.getUint8(5);
             let ts0 = v.getUint8(6);
@@ -328,6 +466,7 @@ class FLVDemuxer {
 
             let timestamp = ts0 | (ts1 << 8) | (ts2 << 16) | (ts3 << 24);
 
+            // 读取流Id，必须为0
             let streamId = v.getUint32(7, !le) & 0x00FFFFFF;
             if (streamId !== 0) {
                 Log.w(this.TAG, 'Meet tag which has StreamID != 0!');
@@ -335,18 +474,23 @@ class FLVDemuxer {
 
             let dataOffset = offset + 11;
 
+            // 根据类型解析对应的tag
             switch (tagType) {
                 case 8:  // Audio
+                    // 解析音频tag
                     this._parseAudioData(chunk, dataOffset, dataSize, timestamp);
                     break;
                 case 9:  // Video
+                    // 解析视频tag
                     this._parseVideoData(chunk, dataOffset, dataSize, timestamp, byteStart + offset);
                     break;
                 case 18:  // ScriptDataObject
+                    // 解析脚本tag
                     this._parseScriptData(chunk, dataOffset, dataSize);
                     break;
             }
 
+            // 读取下一个tag的PrevTagSize和当前的tag大小对比进行验证
             let prevTagSize = v.getUint32(11 + dataSize, !le);
             if (prevTagSize !== 11 + dataSize) {
                 Log.w(this.TAG, `Invalid PrevTagSize ${prevTagSize}`);
@@ -355,9 +499,11 @@ class FLVDemuxer {
             offset += 11 + dataSize + 4;  // tagBody + dataSize + prevTagSize
         }
 
+        // 分发解析出来的帧数据给消费者 mp4remuxer
         // dispatch parsed frames to consumer (typically, the remuxer)
         if (this._isInitialMetadataDispatched()) {
             if (this._dispatch && (this._audioTrack.length || this._videoTrack.length)) {
+                // 分发给 mp4remuxer
                 this._onDataAvailable(this._audioTrack, this._videoTrack);
             }
         }
@@ -365,7 +511,14 @@ class FLVDemuxer {
         return offset;  // consumed bytes, just equals latest offset index
     }
 
+    /**
+     * 解析flv的脚本tag
+     * @param {数组缓冲区} arrayBuffer 
+     * @param {有效数据在缓冲区的开始位置} dataOffset 
+     * @param {数据的有效长度} dataSize 
+     */
     _parseScriptData(arrayBuffer, dataOffset, dataSize) {
+        // 解析amf
         let scriptData = AMF.parseScriptData(arrayBuffer, dataOffset, dataSize);
 
         if (scriptData.hasOwnProperty('onMetaData')) {
@@ -443,6 +596,7 @@ class FLVDemuxer {
             }
         }
 
+        // 分发script数据
         if (Object.keys(scriptData).length > 0) {
             if (this._onScriptDataArrived) {
                 this._onScriptDataArrived(Object.assign({}, scriptData));
@@ -450,6 +604,10 @@ class FLVDemuxer {
         }
     }
 
+    /**
+     * 解析关键帧索引
+     * @param {关键帧} keyframes 
+     */
     _parseKeyframesIndex(keyframes) {
         let times = [];
         let filepositions = [];
@@ -469,6 +627,41 @@ class FLVDemuxer {
 
     /**
      * 解析音频数据
+     * ------------------------------------------------------------------------
+     * Field        type        Comment
+     * ------------------------------------------------------------------------
+     * 音频格式     UB4          0 = Linear PCM, platform endian
+     *                          1 = ADPCM
+     *                          2 = MP3
+     *                          3 = Linear PCM, little endian
+     *                          4 = Nellymoser 16-kHz mono
+     *                          5 = Nellymoser 8-kHz mono
+     *                          6 = Nellymoser
+     *                          7 = G.711 A-law logarithmic PCM
+     *                          8 = G.711 mu-law logarithmic PCM 9 = reserved
+     *                          10 = AAC
+     *                          11 = Speex
+     *                          14 = MP3 8-Khz
+     *                          15 = Device-specific sound
+     *                          7, 8, 14, and 15：内部保留使用。
+     *                          flv是不支持g711a的，如果要用，可能要用线性音频。
+     * ------------------------------------------------------------------------
+     * 采样率       UB2         For AAC: always 3
+     *                          0 = 5.5-kHz
+     *                          1 = 11-kHz
+     *                          2 = 22-kHz
+     *                          3 = 44-kHz
+     * ------------------------------------------------------------------------
+     * 采样大小     UB1          0 = snd8Bit
+     *                          1 = snd16Bit
+     * ------------------------------------------------------------------------
+     * 声道         UB1         0=单声道
+     *                          1=立体声,双声道。AAC永远是1
+     * ------------------------------------------------------------------------
+     * 声音数据     UI8[N]	    如果是PCM线性数据，存储的时候每个16bit小端存储，有符号。
+     *                          如果音频格式是AAC，则存储的数据是AAC AUDIO DATA，否则为线性数组。
+     * ------------------------------------------------------------------------
+     * 
      * @param {缓冲区数组} arrayBuffer 
      * @param {偏移} dataOffset 
      * @param {数据大小} dataSize 
@@ -489,25 +682,46 @@ class FLVDemuxer {
         let le = this._littleEndian;
         let v = new DataView(arrayBuffer, dataOffset, dataSize);
 
+        // 读取第一个字节
         let soundSpec = v.getUint8(0);
 
+        // 获取第一个字节的高4位 - 音频格式
         let soundFormat = soundSpec >>> 4;
+        // 判断是否为 2-mp3或者10-AAC，如果不是直接返回
         if (soundFormat !== 2 && soundFormat !== 10) {  // MP3 or AAC
             this._onError(DemuxErrors.CODEC_UNSUPPORTED, 'Flv: Unsupported audio codec idx: ' + soundFormat);
             return;
         }
 
+        // 音频采样率
         let soundRate = 0;
+        // 读取第一个字节的2-3位，音频采样率索引
+        // For AAC: always 3
+        // 0 = 5.5-kHz
+        // 1 = 11-kHz
+        // 2 = 22-kHz
+        // 3 = 44-kHz
         let soundRateIndex = (soundSpec & 12) >>> 2;
         if (soundRateIndex >= 0 && soundRateIndex <= 4) {
+            // 从采样率表中获取实际采样率值
             soundRate = this._flvSoundRateTable[soundRateIndex];
         } else {
             this._onError(DemuxErrors.FORMAT_ERROR, 'Flv: Invalid audio sample rate idx: ' + soundRateIndex);
             return;
         }
 
+        // 读取采样大小
+        // 0 = snd8Bit
+        // 1 = snd16Bit
         let soundSize = (soundSpec & 2) >>> 1;  // unused
+        // 读取声道数
+        // 0=单声道
+        // 1=立体声,双声道。
+        // AAC永远是1
         let soundType = (soundSpec & 1);
+
+        // 一个字节的音频头读取完成
+        ////////////////////////////////////////////////////
 
 
         let meta = this._audioMetadata;
@@ -520,6 +734,7 @@ class FLVDemuxer {
             }
 
             // initial metadata
+            // 初始化 音频的metadata
             meta = this._audioMetadata = {};
             meta.type = 'audio';
             meta.id = track.id;
@@ -529,16 +744,21 @@ class FLVDemuxer {
             meta.channelCount = (soundType === 0 ? 1 : 2);
         }
 
+        // 解析音频数据部分
         if (soundFormat === 10) {  // AAC
+            // 解析aac数据 -- 跳过1字节的音频头
             let aacData = this._parseAACAudioData(arrayBuffer, dataOffset + 1, dataSize - 1);
             if (aacData == undefined) {
                 return;
             }
 
+            // AAC数据处理
             if (aacData.packetType === 0) {  // AAC sequence header (AudioSpecificConfig)
+                // AAC 序列头 AudioSpecificConfig 处理
                 if (meta.config) {
                     Log.w(this.TAG, 'Found another AudioSpecificConfig!');
                 }
+                // 更新 音频的metadata
                 let misc = aacData.data;
                 meta.audioSampleRate = misc.samplingRate;
                 meta.channelCount = misc.channelCount;
@@ -548,19 +768,24 @@ class FLVDemuxer {
                 // The decode result of an aac sample is 1024 PCM samples
                 meta.refSampleDuration = 1024 / meta.audioSampleRate * meta.timescale;
                 Log.v(this.TAG, 'Parsed AudioSpecificConfig');
-
+                
+                // 不是初始的元数据，强制将解析的帧分派（或刷新）到remuxer
                 if (this._isInitialMetadataDispatched()) {
                     // Non-initial metadata, force dispatch (or flush) parsed frames to remuxer
                     if (this._dispatch && (this._audioTrack.length || this._videoTrack.length)) {
                         this._onDataAvailable(this._audioTrack, this._videoTrack);
                     }
                 } else {
+                    // 初始的元数据，记录标志
                     this._audioInitialMetadataDispatched = true;
                 }
+
+                // 通知mp4-remuxer 新的元数据到达
                 // then notify new metadata
                 this._dispatch = false;
                 this._onTrackMetadata('audio', meta);
 
+                // 更新mediaInfo
                 let mi = this._mediaInfo;
                 mi.audioCodec = meta.originalCodec;
                 mi.audioSampleRate = meta.audioSampleRate;
@@ -572,18 +797,29 @@ class FLVDemuxer {
                 } else {
                     mi.mimeType = 'video/x-flv; codecs="' + mi.audioCodec + '"';
                 }
+
+                // 检查媒体信息是否收集完成
                 if (mi.isComplete()) {
+                    // 通知 媒体信息收集完成
                     this._onMediaInfo(mi);
                 }
             } else if (aacData.packetType === 1) {  // AAC raw frame data
+                // AAC的 raw帧数据 处理
                 let dts = this._timestampBase + tagTimestamp;
-                let aacSample = {unit: aacData.data, length: aacData.data.byteLength, dts: dts, pts: dts};
+                let aacSample = {
+                    unit: aacData.data, 
+                    length: aacData.data.byteLength, 
+                    dts: dts, 
+                    pts: dts
+                };
+
+                // 添加到track的samples中
                 track.samples.push(aacSample);
                 track.length += aacData.data.length;
             } else {
                 Log.e(this.TAG, `Flv: Unsupported AAC data type ${aacData.packetType}`);
             }
-        } else if (soundFormat === 2) {  // MP3
+        } else if (soundFormat === 2) {  // MP3 暂时不看
             if (!meta.codec) {
                 // We need metadata for mp3 audio track, extract info from frame header
                 let misc = this._parseMP3AudioData(arrayBuffer, dataOffset + 1, dataSize - 1, true);
@@ -630,6 +866,18 @@ class FLVDemuxer {
         }
     }
 
+    /**
+     * 解析AAC音频数据
+     * @param {缓冲区} arrayBuffer 
+     * @param {数据起始位置} dataOffset 
+     * @param {数据大小} dataSize 
+     * 
+     * @return result: {
+     *  packetType, // 0-AACAudioSpecificConfig， 1-raw data
+     *  data        // 
+     * }
+     * 
+     */
     _parseAACAudioData(arrayBuffer, dataOffset, dataSize) {
         if (dataSize <= 1) {
             Log.w(this.TAG, 'Flv: Invalid AAC packet, missing AACPacketType or/and Data!');
@@ -639,17 +887,71 @@ class FLVDemuxer {
         let result = {};
         let array = new Uint8Array(arrayBuffer, dataOffset, dataSize);
 
+        // 读取AAC的packetType保存到 result.packetType中
         result.packetType = array[0];
 
+        // 根据AAC的packetType进行处理 
+        // 0- AACAudioSpecificConfig
+        // 1- raw data
         if (array[0] === 0) {
+            // AACAudioSpecificConfig
+            // 去掉第一个字节后解析结构保存到result.data中
             result.data = this._parseAACAudioSpecificConfig(arrayBuffer, dataOffset + 1, dataSize - 1);
         } else {
+            // raw data
+            // 去掉第一个字节后保存到result.data中
             result.data = array.subarray(1);
         }
 
+        // 返回解析结果
         return result;
     }
 
+    /**
+     * 解析 AAC音频 特定配置信息
+     * 
+     * ------------------------------------------------------------------------
+     * Field        type        Comment
+     * ------------------------------------------------------------------------
+     * 音频对象类型 UB5          0: Null
+     *                          1: AAC Main
+     *                          2: AAC LC
+     *                          3: AAC SSR (Scalable Sample Rate)
+     *                          4: AAC LTP (Long Term Prediction)
+     *                          5: HE-AAC / SBR (Spectral Band Replication)
+     *                          6: AAC Scalable
+     * ------------------------------------------------------------------------
+     * 采样频率(Hz) UB4          0:96000
+     *                          1:88200
+     *                          2:64000
+     *                          3:48000
+     *                          4:44100
+     *                          5:32000
+     *                          6:24000
+     *                          7:22050
+     *                          8:16000
+     *                          9:12000
+     *                          10:11025
+     *                          11:8000
+     *                          12:7350
+     * ------------------------------------------------------------------------
+     * 声道         UB4         声道数
+     * ------------------------------------------------------------------------
+     * extensionSamplingIndex     UB4     5: HE-AAC / SBR (Spectral Band Replication)
+     * audioExtensionObjectType   UB5     5: HE-AAC / SBR (Spectral Band Replication)
+     * ------------------------------------------------------------------------
+     * 
+     * @param {缓冲区} arrayBuffer 
+     * @param {数据起始位置} dataOffset 
+     * @param {数据大小} dataSize 
+     * @return result：{
+     *       config: config,
+     *       samplingRate: samplingFrequence,
+     *       channelCount: channelConfig,
+     *       codec: 'mp4a.40.' + audioObjectType,
+     *       originalCodec: 'mp4a.40.' + originalAudioObjectType
+     *   }
+     */
     _parseAACAudioSpecificConfig(arrayBuffer, dataOffset, dataSize) {
         let array = new Uint8Array(arrayBuffer, dataOffset, dataSize);
         let config = null;
@@ -742,6 +1044,7 @@ class FLVDemuxer {
             config[3]  = 0;
         }
 
+        // 返回音频配置对象
         return {
             config: config,
             samplingRate: samplingFrequence,
