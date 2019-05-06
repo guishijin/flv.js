@@ -497,6 +497,9 @@ class MP4Remuxer {
                 sampleDuration = Math.round(refSampleDuration);
             }
 
+            // TODO: 调试信息
+            Log.i(this.TAG, '_remuxAudio=>> ' + 'dts:' + dts + ', pts:' + dts + ', cts:' + 0 + ', duration:' + sampleDuration + ', originalDts:' + originalDts);
+
             mp4Samples.push({
                 dts: dts,
                 pts: dts,
@@ -719,6 +722,9 @@ class MP4Remuxer {
                 syncPoint.fileposition = sample.fileposition;
                 info.appendSyncPoint(syncPoint);
             }
+
+            // TODO: 调试信息
+            Log.i(this.TAG, '_remuxVideo=>> ' + 'dts:' + dts + ', pts:' + pts + ', cts:' + cts + ', duration:' + sampleDuration + ', originalDts:' + originalDts);
 
             mp4Samples.push({
                 dts: dts,

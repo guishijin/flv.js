@@ -31,19 +31,23 @@ class MSEController {
 
     /**
      * 构造函数
-     * @param {配置} config
+     * @param {配置} config 参考api.md
      */
     constructor(config) {
         this.TAG = 'MSEController';
 
+        // 保存外部配置
         this._config = config;
+        // 构造事件发射器
         this._emitter = new EventEmitter();
 
+        // 判断是否直播
         if (this._config.isLive && this._config.autoCleanupSourceBuffer == undefined) {
             // For live stream, do auto cleanup by default
             this._config.autoCleanupSourceBuffer = true;
         }
 
+        // 绑定事件
         this.e = {
             onSourceOpen: this._onSourceOpen.bind(this),
             onSourceEnded: this._onSourceEnded.bind(this),
@@ -199,9 +203,18 @@ class MSEController {
     /**
      * 添加初始的分片
      * @param {初始的分片} initSegment 
+     * {
+     *      type: type,
+     *      data: metabox.buffer,
+     *      codec: codec,
+     *      container: `${type}/${container}`,
+     *      mediaDuration: metadata.duration  // in timescale 1000 (milliseconds)
+     * }
      * @param {??} deferred 
      */
     appendInitSegment(initSegment, deferred) {
+
+        // 判断_mediaSource是否已经open状态
         if (!this._mediaSource || this._mediaSource.readyState !== 'open') {
             // sourcebuffer creation requires mediaSource.readyState === 'open'
             // so we defer the sourcebuffer creation, until sourceopen event triggered
@@ -263,6 +276,12 @@ class MSEController {
     /**
      * 添加媒体分片
      * @param {媒体分片} mediaSegment 
+     * {
+     *      type: 'video',
+     *      data: this._mergeBoxes(moofbox, mdatbox).buffer,
+     *      sampleCount: mp4Samples.length,
+     *      info: info
+     *  }
      */
     appendMediaSegment(mediaSegment) {
         let ms = mediaSegment;
