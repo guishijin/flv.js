@@ -159,7 +159,24 @@ class MP4Remuxer {
      * 接收源的数据，进行数据的重新封装
      * 
      * @param {音频轨道} audioTrack 
+     * {
+     *      type: 'audio', 
+     *      id: 2, 
+     *      sequenceNumber: 0, 
+     *      samples: [], length: 0
+     * };
+     * 
+     * audioTrack.samples[0]:
+     * 
+     * 
      * @param {视频轨道} videoTrack 
+     * {
+     *      type: 'video', 
+     *      id: 1, 
+     *      sequenceNumber: 0, 
+     *      samples: [], 
+     *      length: 0
+     * }
      */
     remux(audioTrack, videoTrack) {
         if (!this._onMediaSegment) {
@@ -168,6 +185,14 @@ class MP4Remuxer {
         if (!this._dtsBaseInited) {
             this._calculateDtsBase(audioTrack, videoTrack);
         }
+
+        // TODO: 调试信息
+        let audioTrackInfo = JSON.stringify(audioTrack);
+        let videoTrackInfo = JSON.stringify(videoTrack);
+        Log.i(this.TAG, '****** remux(audioTrack, videoTrack): =>> ******');
+        Log.i(this.TAG, audioTrackInfo);
+        Log.i(this.TAG, videoTrackInfo);
+        Log.i(this.TAG, '****** remux(audioTrack, videoTrack): <<= ******');
 
         // 封装视频
         this._remuxVideo(videoTrack);
@@ -588,10 +613,10 @@ class MP4Remuxer {
         track.length = 0;
 
         // TODO: 调试信息
-        let moofboxstr = uint8ArrayPrint(moofbox, 0, moofbox.length > 30 ? 30 : moofbox.length);
-        let mdatboxstr = uint8ArrayPrint(mdatbox, 0, mdatbox.length > 30 ? 30 : mdatbox.length);
-        Log.i(this.TAG, 'moof - audio : ' + moofboxstr);
-        Log.i(this.TAG, 'mdat - audio : ' + mdatboxstr);
+        // let moofboxstr = uint8ArrayPrint(moofbox, 0, moofbox.length > 30 ? 30 : moofbox.length);
+        // let mdatboxstr = uint8ArrayPrint(mdatbox, 0, mdatbox.length > 30 ? 30 : mdatbox.length);
+        // Log.i(this.TAG, 'moof - audio : ' + moofboxstr);
+        // Log.i(this.TAG, 'mdat - audio : ' + mdatboxstr);
 
         let segment = {
             type: 'audio',
@@ -806,10 +831,10 @@ class MP4Remuxer {
         track.length = 0;
 
         // TODO: 调试信息
-        let moofboxstr = uint8ArrayPrint(moofbox, 0, moofbox.length > 30 ? 30 : moofbox.length);
-        let mdatboxstr = uint8ArrayPrint(mdatbox, 0, mdatbox.length > 30 ? 30 : mdatbox.length);
-        Log.i(this.TAG, 'moof - video : ' + moofboxstr);
-        Log.i(this.TAG, 'mdat - video : ' + mdatboxstr);
+        // let moofboxstr = uint8ArrayPrint(moofbox, 0, moofbox.length > 30 ? 30 : moofbox.length);
+        // let mdatboxstr = uint8ArrayPrint(mdatbox, 0, mdatbox.length > 30 ? 30 : mdatbox.length);
+        // Log.i(this.TAG, 'moof - video : ' + moofboxstr);
+        // Log.i(this.TAG, 'mdat - video : ' + mdatboxstr);
 
         // 通知mse-controller视频片段生成
         this._onMediaSegment('video', {

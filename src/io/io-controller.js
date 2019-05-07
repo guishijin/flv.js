@@ -39,14 +39,25 @@ import {RuntimeException, IllegalStateException, InvalidArgumentException} from 
  */
 
 // Manage IO Loaders
+/**
+ * IO加载器管理控制器
+ */
 class IOController {
 
+    /**
+     * 构造函数
+     * @param {dataSource} dataSource 
+     * @param {config} config 
+     * @param {extraData} extraData 
+     */
     constructor(dataSource, config, extraData) {
         this.TAG = 'IOController';
 
+        // 保存配置和附加数据
         this._config = config;
         this._extraData = extraData;
 
+        // 初始化stash缓冲大小
         this._stashInitialSize = 1024 * 384;  // default initial size: 384KB
         if (config.stashInitialSize != undefined && config.stashInitialSize > 0) {
             // apply from config
@@ -91,11 +102,17 @@ class IOController {
         this._onRedirect = null;
         this._onRecoveredEarlyEof = null;
 
+        // 选择 seek处理器
         this._selectSeekHandler();
+        // 选择 Loader
         this._selectLoader();
+        // 创建 Loader
         this._createLoader();
     }
 
+    /**
+     * 析构函数
+     */
     destroy() {
         if (this._loader.isWorking()) {
             this._loader.abort();
@@ -121,22 +138,37 @@ class IOController {
         this._extraData = null;
     }
 
+    /**
+     * 检查工作状态
+     */
     isWorking() {
         return this._loader && this._loader.isWorking() && !this._paused;
     }
 
+    /**
+     * 检查暂停状态
+     */
     isPaused() {
         return this._paused;
     }
 
+    /**
+     * 获取状态
+     */
     get status() {
         return this._loader.status;
     }
 
+    /**
+     * 获取附加数据
+     */
     get extraData() {
         return this._extraData;
     }
 
+    /**
+     * 设置附加数据
+     */
     set extraData(data) {
         this._extraData = data;
     }
@@ -216,6 +248,16 @@ class IOController {
         return this._loader.type;
     }
 
+
+    /**
+     * 初始化选择 Seek处理器
+     * 
+     * 根据配置的 seekType进行选择：
+     *      'range' : RangeSeekHandler
+     *      'param' : ParamSeekHandler
+     *      'custom': config.customSeekHandler()
+     *      其他    : 抛出异常
+     */
     _selectSeekHandler() {
         let config = this._config;
 
@@ -236,6 +278,15 @@ class IOController {
         }
     }
 
+    /**
+     * 初始化选择 Loader
+     * this._config.customLoader? this._loaderClass = this._config.customLoader
+     * this._isWebSocketURL? this._loaderClass = WebSocketLoader
+     * FetchStreamLoader.isSupported()? this._loaderClass = FetchStreamLoader
+     * MozChunkedLoader.isSupported()? this._loaderClass = MozChunkedLoader
+     * RangeLoader.isSupported()? this._loaderClass = RangeLoader
+     * 其他：抛出异常
+     */
     _selectLoader() {
         // io方式选择结果：
         Log.v(this.TAG, 'io-controller._selectLoader(), 开始选择io-loader ......');
@@ -257,11 +308,21 @@ class IOController {
         Log.v(this.TAG, 'io-controller._selectLoader(): 选择结果：' + this._loaderClass.name);
     }
 
+    /**
+     * 创建Loader
+     * 
+     * 根据选定的Loader实例化Loader对象
+     */
     _createLoader() {
+
+        // 实例化Loader对象
         this._loader = new this._loaderClass(this._seekHandler, this._config);
+        
         if (this._loader.needStashBuffer === false) {
             this._enableStash = false;
         }
+
+        // 绑定Loader的回调函数
         this._loader.onContentLengthKnown = this._onContentLengthKnown.bind(this);
         this._loader.onURLRedirect = this._onURLRedirect.bind(this);
         this._loader.onDataArrival = this._onLoaderChunkArrival.bind(this);
@@ -269,6 +330,10 @@ class IOController {
         this._loader.onError = this._onLoaderError.bind(this);
     }
 
+    /**
+     * 打开IO-Loader
+     * @param {可选的参数optionalFrom} optionalFrom 
+     */
     open(optionalFrom) {
         this._currentRange = {from: 0, to: -1};
         if (optionalFrom) {
@@ -280,10 +345,15 @@ class IOController {
             this._fullRequestFlag = true;
         }
 
+        // 打开IO-Loader
         this._loader.open(this._dataSource, Object.assign({}, this._currentRange));
     }
 
+    /**
+     * 终止IO-Loader
+     */
     abort() {
+        // 终止Loader
         this._loader.abort();
 
         if (this._paused) {
@@ -292,6 +362,9 @@ class IOController {
         }
     }
 
+    /**
+     * 暂停IO-Loader
+     */
     pause() {
         if (this.isWorking()) {
             this._loader.abort();
@@ -308,6 +381,9 @@ class IOController {
         }
     }
 
+    /**
+     * 恢复IO-Loader
+     */
     resume() {
         if (this._paused) {
             this._paused = false;
@@ -317,6 +393,10 @@ class IOController {
         }
     }
 
+    /**
+     * 定位到指定字节
+     * @param {字节数} bytes 
+     */
     seek(bytes) {
         this._paused = false;
         this._stashUsed = 0;
@@ -354,6 +434,10 @@ class IOController {
         }
     }
 
+    /**
+     * 更新url
+     * @param {url} url 
+     */
     updateUrl(url) {
         if (!url || typeof url !== 'string' || url.length === 0) {
             throw new InvalidArgumentException('Url must be a non-empty string!');
@@ -364,6 +448,10 @@ class IOController {
         // TODO: replace with new url
     }
 
+    /**
+     * 扩展缓冲区
+     * @param {期望的字节数} expectedBytes 
+     */
     _expandBuffer(expectedBytes) {
         let bufferNewSize = this._stashSize;
         while (bufferNewSize + 1024 * 1024 * 1 < expectedBytes) {
@@ -387,6 +475,10 @@ class IOController {
         this._bufferSize = bufferNewSize;
     }
 
+    /**
+     * 归一化速度值
+     * @param {input} input 
+     */
     _normalizeSpeed(input) {
         let list = this._speedNormalizeList;
         let last = list.length - 1;
@@ -411,6 +503,10 @@ class IOController {
         }
     }
 
+    /**
+     * 调整Stash大小
+     * @param {normalized} normalized 
+     */
     _adjustStashSize(normalized) {
         let stashSizeKB = 0;
 
@@ -438,11 +534,53 @@ class IOController {
         this._stashSize = stashSizeKB * 1024;
     }
 
+    /**
+     * 分发数据块
+     * @param {chunks} chunks 
+     * @param {起始位置} byteStart 
+     */
     _dispatchChunks(chunks, byteStart) {
         this._currentRange.to = byteStart + chunks.byteLength - 1;
         return this._onDataArrival(chunks, byteStart);
     }
 
+    /**
+     * 刷新stash缓冲区
+     * @param {是否丢弃未消费的数据} dropUnconsumed 
+     */
+    _flushStashBuffer(dropUnconsumed) {
+        if (this._stashUsed > 0) {
+            let buffer = this._stashBuffer.slice(0, this._stashUsed);
+            let consumed = this._dispatchChunks(buffer, this._stashByteStart);
+            let remain = buffer.byteLength - consumed;
+
+            if (consumed < buffer.byteLength) {
+                if (dropUnconsumed) {
+                    Log.w(this.TAG, `${remain} bytes unconsumed data remain when flush buffer, dropped`);
+                } else {
+                    if (consumed > 0) {
+                        let stashArray = new Uint8Array(this._stashBuffer, 0, this._bufferSize);
+                        let remainArray = new Uint8Array(buffer, consumed);
+                        stashArray.set(remainArray, 0);
+                        this._stashUsed = remainArray.byteLength;
+                        this._stashByteStart += consumed;
+                    }
+                    return 0;
+                }
+            }
+            this._stashUsed = 0;
+            this._stashByteStart = 0;
+            return remain;
+        }
+        return 0;
+    }
+
+    // ------------------------------------------------------------------------
+    // 下面是 IO-Loader的五个事件处理回调函数
+    /**
+     * 重定向处理
+     * @param {redirectURL} redirectedURL 
+     */
     _onURLRedirect(redirectedURL) {
         this._redirectedURL = redirectedURL;
         if (this._onRedirect) {
@@ -450,6 +588,9 @@ class IOController {
         }
     }
 
+    /**
+     * 已知内容长度通知处理
+     */
     _onContentLengthKnown(contentLength) {
         if (contentLength && this._fullRequestFlag) {
             this._totalLength = contentLength;
@@ -457,6 +598,12 @@ class IOController {
         }
     }
 
+    /**
+     * IO-Loader数据块接收到处理
+     * @param {chunk} chunk 
+     * @param {起始位置} byteStart 
+     * @param {长度} receivedLength 
+     */
     _onLoaderChunkArrival(chunk, byteStart, receivedLength) {
         if (!this._onDataArrival) {
             throw new IllegalStateException('IOController: No existing consumer (onDataArrival) callback!');
@@ -567,33 +714,13 @@ class IOController {
         }
     }
 
-    _flushStashBuffer(dropUnconsumed) {
-        if (this._stashUsed > 0) {
-            let buffer = this._stashBuffer.slice(0, this._stashUsed);
-            let consumed = this._dispatchChunks(buffer, this._stashByteStart);
-            let remain = buffer.byteLength - consumed;
+    
 
-            if (consumed < buffer.byteLength) {
-                if (dropUnconsumed) {
-                    Log.w(this.TAG, `${remain} bytes unconsumed data remain when flush buffer, dropped`);
-                } else {
-                    if (consumed > 0) {
-                        let stashArray = new Uint8Array(this._stashBuffer, 0, this._bufferSize);
-                        let remainArray = new Uint8Array(buffer, consumed);
-                        stashArray.set(remainArray, 0);
-                        this._stashUsed = remainArray.byteLength;
-                        this._stashByteStart += consumed;
-                    }
-                    return 0;
-                }
-            }
-            this._stashUsed = 0;
-            this._stashByteStart = 0;
-            return remain;
-        }
-        return 0;
-    }
-
+    /**
+     * IO-Loader完成事件
+     * @param {from} from 
+     * @param {to} to 
+     */
     _onLoaderComplete(from, to) {
         // Force-flush stash buffer, and drop unconsumed data
         this._flushStashBuffer(true);
@@ -603,6 +730,11 @@ class IOController {
         }
     }
 
+    /**
+     * IO-Loader错误事件
+     * @param {type} type 
+     * @param {data} data 
+     */
     _onLoaderError(type, data) {
         Log.e(this.TAG, `Loader error, code = ${data.code}, msg = ${data.msg}`);
 
@@ -646,7 +778,8 @@ class IOController {
             throw new RuntimeException('IOException: ' + data.msg);
         }
     }
-
+    // 上面是 IO-Loader的五个事件处理回调函数
+    // ------------------------------------------------------------------------
 }
 
 /**

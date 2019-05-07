@@ -259,6 +259,9 @@ class FLVDemuxer {
 
     /**
      * 绑定数据源 ： 对于demuxer来说源为io
+     * 
+     * IO-Loader调用onDataArrival将数据分发给Demuxer的parseChunks函数进行处理
+     * 
      * @param {} loader IOloader
      */
     bindDataSource(loader) {
@@ -272,6 +275,7 @@ class FLVDemuxer {
         return this._onTrackMetadata;
     }
 
+    // 设置 demuxer的 消费者 mp4-muxer接收元数据信息
     set onTrackMetadata(callback) {
         this._onTrackMetadata = callback;
     }
@@ -1130,6 +1134,15 @@ class FLVDemuxer {
         return result;
     }
 
+    /**
+     * 解析视频数据
+     * 
+     * @param {数组缓冲区} arrayBuffer 
+     * @param {数据起始位置} dataOffset 
+     * @param {数据大小} dataSize 
+     * @param {flv - Tag 时间戳} tagTimestamp 
+     * @param {flv - Tag 位置} tagPosition 
+     */
     _parseVideoData(arrayBuffer, dataOffset, dataSize, tagTimestamp, tagPosition) {
         if (dataSize <= 1) {
             Log.w(this.TAG, 'Flv: Invalid video packet, missing VideoData payload!');
@@ -1152,9 +1165,20 @@ class FLVDemuxer {
             return;
         }
 
+        // 解析AVC视频Packet
         this._parseAVCVideoPacket(arrayBuffer, dataOffset + 1, dataSize - 1, tagTimestamp, tagPosition, frameType);
     }
 
+    /**
+     * 解析AVC视频Packet
+     * 
+     * @param {数据缓冲区} arrayBuffer 
+     * @param {数据起始位置} dataOffset 
+     * @param {数据大小} dataSize 
+     * @param {flv - Tag 时间戳} tagTimestamp 
+     * @param {flv - tag 位置} tagPosition 
+     * @param {帧类型} frameType 
+     */
     _parseAVCVideoPacket(arrayBuffer, dataOffset, dataSize, tagTimestamp, tagPosition, frameType) {
         if (dataSize < 4) {
             Log.w(this.TAG, 'Flv: Invalid AVC packet, missing AVCPacketType or/and CompositionTime');
@@ -1164,22 +1188,33 @@ class FLVDemuxer {
         let le = this._littleEndian;
         let v = new DataView(arrayBuffer, dataOffset, dataSize);
 
+        // 获取 tag的packetType
         let packetType = v.getUint8(0);
         let cts_unsigned = v.getUint32(0, !le) & 0x00FFFFFF;
         let cts = (cts_unsigned << 8) >> 8;  // convert to 24-bit signed int
 
         if (packetType === 0) {  // AVCDecoderConfigurationRecord
+            // 解析视频的解码器配置信息
             this._parseAVCDecoderConfigurationRecord(arrayBuffer, dataOffset + 4, dataSize - 4);
         } else if (packetType === 1) {  // One or more Nalus
+            // 解析一个或多个H264的Nalu
             this._parseAVCVideoData(arrayBuffer, dataOffset + 4, dataSize - 4, tagTimestamp, tagPosition, frameType, cts);
         } else if (packetType === 2) {
             // empty, AVC end of sequence
+            // AVC结束序列
         } else {
             this._onError(DemuxErrors.FORMAT_ERROR, `Flv: Invalid video packet type ${packetType}`);
             return;
         }
     }
 
+    /**
+     * 解析AVC解码器配置信息
+     * 
+     * @param {数据数组缓冲区} arrayBuffer 
+     * @param {数据起始位置} dataOffset 
+     * @param {数据大小} dataSize 
+     */
     _parseAVCDecoderConfigurationRecord(arrayBuffer, dataOffset, dataSize) {
         if (dataSize < 7) {
             Log.w(this.TAG, 'Flv: Invalid AVCDecoderConfigurationRecord, lack of data!');
@@ -1197,10 +1232,15 @@ class FLVDemuxer {
                 this._mediaInfo.hasVideo = true;
             }
 
+            // 初始化meta对象
             meta = this._videoMetadata = {};
+            // 初始化 type
             meta.type = 'video';
+            // 初始化 id
             meta.id = track.id;
+            // 初始化 timescale
             meta.timescale = this._timescale;
+            // 初始化 duration
             meta.duration = this._duration;
         } else {
             if (typeof meta.avcc !== 'undefined') {
@@ -1345,9 +1385,21 @@ class FLVDemuxer {
         }
         // notify new metadata
         this._dispatch = false;
+        // 通知 muxer 视频轨道的meta数据到达
         this._onTrackMetadata('video', meta);
     }
 
+    /**
+     * 解析AVC视频数据
+     * 
+     * @param {数据数组缓冲区} arrayBuffer 
+     * @param {数据起始位置} dataOffset 
+     * @param {数据大小} dataSize 
+     * @param {flv-tag时间戳} tagTimestamp 
+     * @param {flv-tag位置} tagPosition 
+     * @param {帧类型} frameType 
+     * @param {cts} cts 
+     */
     _parseAVCVideoData(arrayBuffer, dataOffset, dataSize, tagTimestamp, tagPosition, frameType, cts) {
         let le = this._littleEndian;
         let v = new DataView(arrayBuffer, dataOffset, dataSize);
@@ -1355,10 +1407,17 @@ class FLVDemuxer {
         let units = [], length = 0;
 
         let offset = 0;
+
+        // 读取flv的nal长度占用的字节数
         const lengthSize = this._naluLengthSize;
+
+        // 计算当前帧的dts时间戳
         let dts = this._timestampBase + tagTimestamp;
+        // 获取关键帧标志
         let keyframe = (frameType === 1);  // from FLV Frame Type constants
 
+        // 循环解析Nalu
+        // [naluSize] [nalu] [naluSize] [nalu] ......
         while (offset < dataSize) {
             if (offset + 4 >= dataSize) {
                 Log.w(this.TAG, `Malformed Nalu near timestamp ${dts}, offset = ${offset}, dataSize = ${dataSize}`);
@@ -1374,20 +1433,28 @@ class FLVDemuxer {
                 return;
             }
 
+            // 读取naltype
             let unitType = v.getUint8(offset + lengthSize) & 0x1F;
 
             if (unitType === 5) {  // IDR
                 keyframe = true;
             }
 
+            // 读取数据 data: [naluSize] + [nalu]
             let data = new Uint8Array(arrayBuffer, dataOffset + offset, lengthSize + naluSize);
+            // 封装为unit
             let unit = {type: unitType, data: data};
+            // 将unit对象压栈到untis中
             units.push(unit);
+
+            // 统计字节长度
             length += data.byteLength;
 
+            // 计算新的偏移量
             offset += lengthSize + naluSize;
         }
 
+        // 构造sample - 每个sample为一个视频帧
         if (units.length) {
             let track = this._videoTrack;
             let avcSample = {
