@@ -18,6 +18,9 @@
 
 import {NotImplementedException} from '../utils/exception.js';
 
+/**
+ * 导出常量 加载器状态定义
+ */
 export const LoaderStatus = {
     kIdle: 0,
     kConnecting: 1,
@@ -26,6 +29,9 @@ export const LoaderStatus = {
     kComplete: 4
 };
 
+/**
+ * 导出常量 加载器错误定义
+ */
 export const LoaderErrors = {
     OK: 'OK',
     EXCEPTION: 'Exception',
@@ -42,8 +48,23 @@ export const LoaderErrors = {
  *     function onError(errorType: number, errorInfo: {code: number, msg: string}): void
  *     function onComplete(rangeFrom: number, rangeTo: number): void
  */
+/**
+ * 导出 基础的加载器类
+ * 
+ * 加载器有下面的回调函数定义：
+ * 
+ *      function onContentLengthKnown(contentLength: number): void
+ *      function onURLRedirect(url: string): void
+ *      function onDataArrival(chunk: ArrayBuffer, byteStart: number, receivedLength: number): void
+ *      function onError(errorType: number, errorInfo: {code: number, msg: string}): void
+ *      function onComplete(rangeFrom: number, rangeTo: number): void
+ */
 export class BaseLoader {
 
+    /**
+     * 构造函数
+     * @param {类型名称} typeName 
+     */
     constructor(typeName) {
         this._type = typeName || 'undefined';
         this._status = LoaderStatus.kIdle;
@@ -56,6 +77,9 @@ export class BaseLoader {
         this._onComplete = null;
     }
 
+    /**
+     * 析构函数
+     */
     destroy() {
         this._status = LoaderStatus.kIdle;
         this._onContentLengthKnown = null;
@@ -65,22 +89,37 @@ export class BaseLoader {
         this._onComplete = null;
     }
 
+    /**
+     * 检查是否正在工作
+     */
     isWorking() {
         return this._status === LoaderStatus.kConnecting || this._status === LoaderStatus.kBuffering;
     }
 
+    /**
+     * 获取类型属性
+     */
     get type() {
         return this._type;
     }
 
+    /**
+     * 获取状态属性
+     */
     get status() {
         return this._status;
     }
 
+    /**
+     * 判断是否需要Stash缓冲
+     */
     get needStashBuffer() {
         return this._needStash;
     }
 
+    /**
+     * 获取已经知道的内容长度
+     */
     get onContentLengthKnown() {
         return this._onContentLengthKnown;
     }
@@ -122,13 +161,20 @@ export class BaseLoader {
     }
 
     // pure virtual
+    /**
+     * 纯虚函数，需要子类必须实现
+     * @param {dataSource} dataSource 
+     * @param {range} range 
+     */
     open(dataSource, range) {
         throw new NotImplementedException('Unimplemented abstract function!');
     }
 
+    /**
+     * 终止
+     * 纯虚函数，需要子类实现
+     */
     abort() {
         throw new NotImplementedException('Unimplemented abstract function!');
     }
-
-
 }
