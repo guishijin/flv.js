@@ -186,13 +186,28 @@ class MP4Remuxer {
             this._calculateDtsBase(audioTrack, videoTrack);
         }
 
-        // TODO: 调试信息
-        let audioTrackInfo = JSON.stringify(audioTrack);
-        let videoTrackInfo = JSON.stringify(videoTrack);
-        Log.i(this.TAG, '****** remux(audioTrack, videoTrack): =>> ******');
+        // TODO: 调试信息 demuxer和remuxer的接口 sample数据传递
+        // let audioTrackInfo = JSON.stringify(audioTrack);
+        // let videoTrackInfo = JSON.stringify(videoTrack);
+        let audioTrackInfo = JSON.stringify({
+            type: audioTrack.type,
+            id: audioTrack.id,
+            sequenceNumber: audioTrack.sequenceNumber,
+            samplesCount: audioTrack.samples.length,
+            length: audioTrack.length
+        });
+        let videoTrackInfo = JSON.stringify({
+            type: videoTrack.type,
+            id: videoTrack.id,
+            sequenceNumber: videoTrack.sequenceNumber,
+            samplesCount: videoTrack.samples.length,
+            length: videoTrack.length
+        });
+        Log.i(this.TAG, 'remux(audioTrack, videoTrack): =>> ');
         Log.i(this.TAG, audioTrackInfo);
         Log.i(this.TAG, videoTrackInfo);
-        Log.i(this.TAG, '****** remux(audioTrack, videoTrack): <<= ******');
+        Log.i(this.TAG, 'remux(audioTrack, videoTrack): <<= ');
+
 
         // 封装视频
         this._remuxVideo(videoTrack);
@@ -207,6 +222,11 @@ class MP4Remuxer {
      */
     _onTrackMetadataReceived(type, metadata) {
         let metabox = null;
+
+        // TODO: 调试信息 demuxer和remuxer的接口 元数据传递
+        Log.i(this.TAG, '_onTrackMetadataReceived((type, metadata)): =>> ');
+        Log.i(this.TAG, 'type = ' + type + ' , metadata = ' + JSON.stringify(metadata));
+        Log.i(this.TAG, '_onTrackMetadataReceived((type, metadata)): <<= ');
 
         let container = 'mp4';
         let codec = metadata.codec;
@@ -522,8 +542,8 @@ class MP4Remuxer {
                 sampleDuration = Math.round(refSampleDuration);
             }
 
-            // TODO: 调试信息
-            Log.i(this.TAG, '_remuxAudio=>> ' + 'dts:' + dts + ', pts:' + dts + ', cts:' + 0 + ', duration:' + sampleDuration + ', originalDts:' + originalDts);
+            // TODO: 调试信息 音频封装后
+            // Log.i(this.TAG, '_remuxAudio=>> ' + 'dts:' + dts + ', pts:' + dts + ', cts:' + 0 + ', duration:' + sampleDuration + ', originalDts:' + originalDts);
 
             mp4Samples.push({
                 dts: dts,
@@ -612,7 +632,7 @@ class MP4Remuxer {
         track.samples = [];
         track.length = 0;
 
-        // TODO: 调试信息
+        // TODO: 调试信息 音频的fmp4
         // let moofboxstr = uint8ArrayPrint(moofbox, 0, moofbox.length > 30 ? 30 : moofbox.length);
         // let mdatboxstr = uint8ArrayPrint(mdatbox, 0, mdatbox.length > 30 ? 30 : mdatbox.length);
         // Log.i(this.TAG, 'moof - audio : ' + moofboxstr);
@@ -748,8 +768,8 @@ class MP4Remuxer {
                 info.appendSyncPoint(syncPoint);
             }
 
-            // TODO: 调试信息
-            Log.i(this.TAG, '_remuxVideo=>> ' + 'dts:' + dts + ', pts:' + pts + ', cts:' + cts + ', duration:' + sampleDuration + ', originalDts:' + originalDts);
+            // TODO: 调试信息 视频封装后
+            // Log.i(this.TAG, '_remuxVideo=>> ' + 'dts:' + dts + ', pts:' + pts + ', cts:' + cts + ', duration:' + sampleDuration + ', originalDts:' + originalDts);
 
             mp4Samples.push({
                 dts: dts,
@@ -830,7 +850,7 @@ class MP4Remuxer {
         track.samples = [];
         track.length = 0;
 
-        // TODO: 调试信息
+        // TODO: 调试信息 视频的fmp4
         // let moofboxstr = uint8ArrayPrint(moofbox, 0, moofbox.length > 30 ? 30 : moofbox.length);
         // let mdatboxstr = uint8ArrayPrint(mdatbox, 0, mdatbox.length > 30 ? 30 : mdatbox.length);
         // Log.i(this.TAG, 'moof - video : ' + moofboxstr);
