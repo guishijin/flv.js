@@ -175,6 +175,7 @@ class TransmuxingController {
         if (optionalFrom) {
             this._demuxer.bindDataSource(this._ioctl);
         } else {
+            // IO-Loader的数据到达事件绑定到 _onInitChunkArrival上
             ioctl.onDataArrival = this._onInitChunkArrival.bind(this);
         }
 

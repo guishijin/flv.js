@@ -112,8 +112,11 @@ class FLVDemuxer {
      * @param {config} config 
      */
     constructor(probeData, config) {
+
+        // 初始化TAG
         this.TAG = 'FLVDemuxer';
 
+        // 保存配置
         this._config = config;
 
         this._onError = null;
@@ -226,6 +229,19 @@ class FLVDemuxer {
      * ————————————————————————————————————————————————————————————————————————
      * 
      * @param {buffer} buffer 
+     * 
+     * @return flv的头信息
+     *  {
+     *      match: true,  // true - 匹配到flv格式
+     *      consumed: offset, //  消费的字节数
+     *      dataOffset: offset,   // 数据新的偏移位置
+     *      hasAudioTrack: hasAudio,  // 是否有音频标志
+     *      hasVideoTrack: hasVideo   // 是否有视频标志
+     *  }
+     *  或者
+     *  {
+     *      match: false  // false - 未匹配上
+     *  }
      */
     static probe(buffer) {
         let data = new Uint8Array(buffer);
